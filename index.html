@@ -140,34 +140,6 @@
       </div>
     </section>
 
-    <section class="section capability-section">
-      <div class="section-heading">
-        <p class="eyebrow">Modern conversion stack</p>
-        <h2>Fast lead capture, direct chat, and booking built into the website.</h2>
-      </div>
-      <div class="capability-grid">
-        <article class="capability-card magnetic">
-          <span>01</span>
-          <h3>Contact form ready for EmailJS or backendless flow</h3>
-          <p>The form collects service interest, website details, and contact information with frontend hooks prepared for EmailJS or any backendless form endpoint.</p>
-        </article>
-        <article class="capability-card magnetic">
-          <span>02</span>
-          <h3>WhatsApp floating button</h3>
-          <p>Visitors can start a pre-filled WhatsApp conversation instantly from any point on the page.</p>
-        </article>
-        <article class="capability-card magnetic">
-          <span>03</span>
-          <h3>Lead capture popup</h3>
-          <p>A “Free Security Report” popup captures high-intent leads without interrupting the main browsing flow.</p>
-        </article>
-        <article class="capability-card magnetic">
-          <span>04</span>
-          <h3>West Bengal search visibility</h3>
-          <p>Page metadata and local business schema target website security, SSL, malware protection, and WordPress security searches across West Bengal and Kolkata.</p>
-        </article>
-      </div>
-    </section>
 
     <section class="section services" id="services">
       <div class="section-heading">
@@ -344,30 +316,10 @@
     </section>
   </main>
 
-  <a class="whatsapp-float magnetic" data-whatsapp-link href="#" target="_blank" rel="noopener" aria-label="Chat with KavachIQ on WhatsApp">
-    <span>WhatsApp</span>
-  </a>
+  <a class="whatsapp-float magnetic" data-whatsapp-link href="#" target="_blank" rel="noopener" aria-label="Chat with KavachIQ on WhatsApp" style="display:none;"></a>
 
-  <div class="lead-popup" data-lead-popup aria-hidden="true">
-    <div class="lead-popup-panel magnetic" role="dialog" aria-modal="true" aria-labelledby="lead-popup-title">
-      <button class="popup-close" data-popup-close type="button" aria-label="Close popup">×</button>
-      <p class="eyebrow">Free Security Report</p>
-      <h2 id="lead-popup-title">Get a free website risk snapshot.</h2>
-      <p>Share your website and email to request a quick security report from KavachIQ.</p>
-      <form class="mini-lead-form" data-lead-form="popup">
-        <label>
-          Website URL
-          <input type="url" name="website" placeholder="https://yourwebsite.com" required>
-        </label>
-        <label>
-          Email
-          <input type="email" name="email" placeholder="you@company.com" required>
-        </label>
-        <button class="primary-button magnetic" type="submit">Get Free Report</button>
-        <p class="form-note" data-popup-note>No spam. Just the security snapshot request.</p>
-      </form>
-    </div>
-  </div>
+  <!-- Lead popup removed -->
+  <div class="lead-popup" data-lead-popup aria-hidden="true" style="display:none;"></div>
 
   <footer class="site-footer">
     <a class="brand" href="#top" aria-label="KavachIQ home">
@@ -381,45 +333,8 @@
     </div>
   </footer>
 
-  <!-- Floating Chatbot Widget -->
-  <div class="chatbot-widget" data-chatbot-widget>
-    <!-- Chat Button -->
-    <button class="chatbot-toggle magnetic" data-chatbot-toggle aria-label="Open Chatbot">
-      <span class="chat-icon">💬</span>
-    </button>
-    
-    <!-- Chat Window -->
-    <div class="chatbot-window" data-chatbot-window aria-hidden="true">
-      <div class="chat-header">
-        <div class="chat-header-info">
-          <div class="chat-status-dot"></div>
-          <div>
-            <h4>KIQ Security Bot</h4>
-            <span class="chat-subtitle">Online • Smarter Defense</span>
-          </div>
-        </div>
-        <button class="chat-close-btn" data-chat-close>&times;</button>
-      </div>
-      
-      <div class="chat-messages" data-chat-messages>
-        <div class="chat-message bot-msg">
-          <p>Hi there! 🛡️ I am the KavachIQ Security Assistant. Ask me anything about our services or choosing the right package!</p>
-        </div>
-      </div>
-      
-      <div class="chat-suggestions" data-chat-suggestions>
-        <button class="suggestion-btn" data-question="What is the Free Health Check?">Free Health Check</button>
-        <button class="suggestion-btn" data-question="What is the Secure Website Package?">Secure Website Pkg</button>
-        <button class="suggestion-btn" data-question="What does the Protection Plan cover?">Protection Plan</button>
-        <button class="suggestion-btn" data-question="How do I book a consultation?">Book Consultation</button>
-      </div>
-      
-      <form class="chat-input-form" data-chat-input-form>
-        <input type="text" placeholder="Ask a security question..." name="chat-message" required autocomplete="off">
-        <button type="submit" aria-label="Send message">➔</button>
-      </form>
-    </div>
-  </div>
+  <!-- Floating Chatbot Widget removed -->
+  <div class="chatbot-widget" data-chatbot-widget style="display:none;"></div>
 
   <script src="script.js"></script>
 </body>
