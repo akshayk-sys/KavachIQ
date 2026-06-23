@@ -36,6 +36,10 @@ cp -r frontend/dist/* dist/app/
 echo "🔧 Copying _worker.js for SPA routing..."
 cp _worker.js dist/
 
+# Create empty .assetsignore to confirm _worker.js is intentional
+# Cloudflare requires this to allow _worker.js upload with Workers + Assets
+touch dist/.assetsignore
+
 # Step 6: Create _headers file for security (supported by Workers + Assets)
 echo "🛡️  Creating _headers..."
 cat > dist/_headers << 'EOF'
