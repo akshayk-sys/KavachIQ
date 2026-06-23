@@ -15,3 +15,4 @@ coverage/
 pgdata/
 install-postgres.bat
 postgresql-installer.exe
+.vite/
