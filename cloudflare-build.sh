@@ -31,10 +31,10 @@ echo "📦 Copying React app to dist/app/ ..."
 mkdir -p dist/app
 cp -r frontend/dist/* dist/app/
 
-# Step 5: No _redirects needed
-# _redirects is a Cloudflare Pages feature, not Workers + Assets.
-# SPA routing for the React app (/app/*) will be configured via Cloudflare Dashboard.
-echo "🔧 SPA routing: configure in Cloudflare Dashboard → Rules"
+# Step 5: Copy _worker.js for Cloudflare Workers + Assets SPA routing
+# The _worker.js intercepts requests and serves /app/index.html for SPA routes
+echo "🔧 Copying _worker.js for SPA routing..."
+cp _worker.js dist/
 
 # Step 6: Create _headers file for security (supported by Workers + Assets)
 echo "🛡️  Creating _headers..."
@@ -50,7 +50,8 @@ echo "✅ Build complete! Output: dist/"
 echo "   ├── index.html (marketing site)"
 echo "   ├── styles.css"
 echo "   ├── script.js"
-echo "   ├── _redirects"
+echo "   ├── _worker.js (SPA routing)"
+echo "   ├── _headers"
 echo "   └── app/ (React SPA)"
 
 ls -la dist/

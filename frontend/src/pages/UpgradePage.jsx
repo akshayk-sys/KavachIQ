@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
-import api from '../services/api';
+import { upgradeAPI } from '../services/api';
 import { Check, X, ArrowRight, Loader } from 'lucide-react';
 
 export default function UpgradePage() {
@@ -20,9 +20,9 @@ export default function UpgradePage() {
     try {
       setLoading(true);
       const [plansRes, subRes, historyRes] = await Promise.all([
-        api.get('/upgrade/plans'),
-        api.get('/upgrade/subscription'),
-        api.get('/upgrade/history')
+        upgradeAPI.getPlans(),
+        upgradeAPI.getSubscription(),
+        upgradeAPI.getHistory()
       ]);
 
       setPlans(plansRes.data.plans || []);
@@ -43,10 +43,7 @@ export default function UpgradePage() {
 
     try {
       setUpgrading(planId);
-      const response = await api.post('/upgrade/subscribe', {
-        planId,
-        paymentMethod: 'stripe' // In production, integrate with Stripe
-      });
+      const response = await upgradeAPI.subscribe(planId, 'stripe');
 
       alert('Upgrade successful!');
       await fetchData();
@@ -64,7 +61,7 @@ export default function UpgradePage() {
 
     try {
       setUpgrading('cancel');
-      await api.post('/upgrade/cancel');
+      await upgradeAPI.cancel();
       alert('Subscription cancelled');
       await fetchData();
     } catch (error) {
