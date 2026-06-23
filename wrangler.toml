@@ -1,12 +1,13 @@
 name = "kavach-iq"
 compatibility_date = "2026-06-23"
 
-# ── Static Assets ────────────────────────────────────────────────
-# Deploy the ./dist folder as static assets for the marketing site + React SPA.
-# The cloudflare-build.sh script generates ./dist with:
-#   - index.html, styles.css, script.js (marketing site)
-#   - app/ (React SPA dashboard)
-#   - _redirects, _headers (routing rules)
+# ── Worker Entry Point ──────────────────────────────────────────
+# _worker.js is the Cloudflare Worker that handles all requests
+# including SPA routing and optional API proxying.
+main = "_worker.js"
 
+# ── Static Assets ────────────────────────────────────────────────
+# The ./dist folder is deployed as static assets (marketing site + React app).
+# The Worker uses env.ASSETS.fetch() to serve these files.
 [assets]
 directory = "./dist"

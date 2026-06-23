@@ -31,14 +31,10 @@ echo "📦 Copying React app to dist/app/ ..."
 mkdir -p dist/app
 cp -r frontend/dist/* dist/app/
 
-# Step 5: Copy _worker.js for Cloudflare Workers + Assets SPA routing
-# The _worker.js intercepts requests and serves /app/index.html for SPA routes
-echo "🔧 Copying _worker.js for SPA routing..."
-cp _worker.js dist/
-
-# Create empty .assetsignore to confirm _worker.js is intentional
-# Cloudflare requires this to allow _worker.js upload with Workers + Assets
-touch dist/.assetsignore
+# Step 5: _worker.js stays at the project root as the Worker entry point
+# It's set as main = "_worker.js" in wrangler.toml, so Wrangler compiles it
+# as the Worker script, separate from the static assets.
+echo "🔧 _worker.js is the Worker entry point (set via wrangler.toml)"
 
 # Step 6: Create _headers file for security (supported by Workers + Assets)
 echo "🛡️  Creating _headers..."
@@ -54,7 +50,7 @@ echo "✅ Build complete! Output: dist/"
 echo "   ├── index.html (marketing site)"
 echo "   ├── styles.css"
 echo "   ├── script.js"
-echo "   ├── _worker.js (SPA routing)"
+echo "   ├── _worker.js (Worker entry point - at project root)"
 echo "   ├── _headers"
 echo "   └── app/ (React SPA)"
 

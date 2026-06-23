@@ -1,7 +1,8 @@
 // ── Cloudflare Workers + Assets ─────────────────────────────────
 // SPA routing handler for the KavachIQ React dashboard at /app/*
-// This file is placed at dist/_worker.js during the Cloudflare build.
-// It intercepts all requests and routes SPA paths to the React app.
+// This is the Worker entry point (main = "_worker.js" in wrangler.toml).
+// It intercepts all requests before they reach the static assets,
+// routing SPA paths to /app/index.html for client-side routing.
 
 export default {
   async fetch(request, env, ctx) {
