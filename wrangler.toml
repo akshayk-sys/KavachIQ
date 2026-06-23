@@ -1,12 +1,5 @@
 name = "kavach-iq"
 compatibility_date = "2026-06-23"
 
-# ── Cloudflare Pages ─────────────────────────────────────────────
-# This file is auto-detected by Wrangler v3.109.0+ for Pages builds.
-# Build command and output dir are set here so the Cloudflare dashboard
-# doesn't need a custom "Deploy command".
-pages_build_command = "bash cloudflare-build.sh"
-pages_output_dir = "./dist"
-
 [pages]
 output_dir = "./dist"
