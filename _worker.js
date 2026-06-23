@@ -14,13 +14,7 @@ export default {
     // Example: BACKEND_API_URL = https://your-api.com
     if (pathname.startsWith('/api/') && env.BACKEND_API_URL) {
       const apiUrl = env.BACKEND_API_URL + pathname + url.search;
-      const proxyRequest = new Request(apiUrl, {
-        method: request.method,
-        headers: request.headers,
-        body: request.method !== 'GET' && request.method !== 'HEAD'
-          ? await request.arrayBuffer() : undefined,
-      });
-      return fetch(proxyRequest);
+      return fetch(new Request(apiUrl, request));
     }
 
     // ── SPA Routing ───────────────────────────────────────────
