@@ -1,5 +1,13 @@
 name = "kavach-iq"
 compatibility_date = "2026-06-23"
 
-[pages]
-output_dir = "./dist"
+# ── Static Assets ────────────────────────────────────────────────
+# This tells Wrangler to deploy the ./dist folder as static assets.
+# The cloudflare-build.sh script generates ./dist with:
+#   - index.html, styles.css, script.js (marketing site)
+#   - app/ (React SPA dashboard)
+#   - _redirects, _headers
+main = "./dist/index.html"
+
+[assets]
+directory = "./dist"
