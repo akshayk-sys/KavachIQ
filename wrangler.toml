@@ -1,0 +1,9 @@
+name = "kavachiq"
+compatibility_date = "2026-06-23"
+
+# Cloudflare Pages configuration
+[pages]
+output_dir = "./dist"
+
+[env.production]
+[env.preview]

@@ -17,7 +17,7 @@ const PrivateRoute = ({ children }) => {
 
 export default function App() {
   return (
-    <Router>
+    <Router basename="/app">
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         
