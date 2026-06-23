@@ -31,22 +31,12 @@ echo "📦 Copying React app to dist/app/ ..."
 mkdir -p dist/app
 cp -r frontend/dist/* dist/app/
 
-# Step 5: Create _redirects for SPA routing
-echo "🔗 Creating _redirects..."
-cat > dist/_redirects << 'EOF'
-# KavachIQ Cloudflare Pages Redirects
+# Step 5: No _redirects needed
+# _redirects is a Cloudflare Pages feature, not Workers + Assets.
+# SPA routing for the React app (/app/*) will be configured via Cloudflare Dashboard.
+echo "🔧 SPA routing: configure in Cloudflare Dashboard → Rules"
 
-# SPA routing for the React app — rewrite all /app/* paths to app's index.html
-/app/*    /app/index.html    200
-
-# The marketing site is served from the root by default
-# All other files are served as-is
-
-# Security headers (optional)
-# /*    /headers   200
-EOF
-
-# Step 6: Create _headers file for security
+# Step 6: Create _headers file for security (supported by Workers + Assets)
 echo "🛡️  Creating _headers..."
 cat > dist/_headers << 'EOF'
 # KavachIQ Security Headers
