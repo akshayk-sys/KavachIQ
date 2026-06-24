@@ -357,6 +357,20 @@ export const trashAPI = {
       return { data: { success: true, message: 'Trash emptied' } };
     }
     return api.delete('/scans/trash/empty');
+  },
+  hasExampleScans: async () => {
+    if (isDemo) {
+      return { data: { hasExamples: MockStore.hasExampleScans() } };
+    }
+    return api.get('/scans/has-examples');
+  },
+  removeExampleScans: async () => {
+    if (isDemo) {
+      await delay(300);
+      const count = MockStore.removeExampleScans();
+      return { data: { success: true, count, message: `${count} example scan${count !== 1 ? 's' : ''} removed` } };
+    }
+    return api.post('/scans/remove-examples');
   }
 };
 

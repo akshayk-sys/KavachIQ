@@ -149,6 +149,26 @@ export const MockStore = {
     this._save();
   },
 
+  /** Batch-delete all example scans (IDs starting with scan-example-) */
+  removeExampleScans() {
+    this._ensureInitialized();
+    const examples = this._customScans.filter(s => s.id.startsWith('scan-example-'));
+    for (const scan of examples) {
+      if (!this._deletedScanIds.has(scan.id)) {
+        this._deletedScanIds.add(scan.id);
+        this._deletedScans.push({ ...scan, deletedAt: new Date().toISOString() });
+      }
+    }
+    this._save();
+    return examples.length; // return count of scans removed
+  },
+
+  /** Check if any example scans are currently active (not deleted) */
+  hasExampleScans() {
+    this._ensureInitialized();
+    return this._customScans.some(s => s.id.startsWith('scan-example-') && !this._deletedScanIds.has(s.id));
+  },
+
   isDeleted(scanId) {
     this._ensureInitialized();
     return this._deletedScanIds.has(scanId);

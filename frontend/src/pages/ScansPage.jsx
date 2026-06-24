@@ -23,6 +23,9 @@ export default function ScansPage() {
   const [showTrash, setShowTrash] = useState(false);
   const [deletedScans, setDeletedScans] = useState([]);
   const [loadingTrash, setLoadingTrash] = useState(false);
+  const [hasExamples, setHasExamples] = useState(false);
+  const [removeExamplesModal, setRemoveExamplesModal] = useState(false);
+  const [removingExamples, setRemovingExamples] = useState(false);
 
   useEffect(() => {
     fetchScans();
@@ -32,6 +35,9 @@ export default function ScansPage() {
     try {
       const res = await scansAPI.getScans();
       setScans(res.data.scans);
+      // Check if example scans are still present
+      const examplesRes = await trashAPI.hasExampleScans();
+      setHasExamples(examplesRes.data.hasExamples);
     } catch (error) {
       console.error('Fetch scans error:', error);
     } finally {
@@ -188,6 +194,20 @@ export default function ScansPage() {
     }
   };
 
+  const handleRemoveExamples = async () => {
+    setRemovingExamples(true);
+    try {
+      await trashAPI.removeExampleScans();
+      setRemoveExamplesModal(false);
+      setHasExamples(false);
+      fetchScans();
+    } catch (err) {
+      console.error('Remove examples error:', err);
+    } finally {
+      setRemovingExamples(false);
+    }
+  };
+
   const toggleTrash = () => {
     if (!showTrash) {
       setShowTrash(true);
@@ -232,13 +252,25 @@ export default function ScansPage() {
             )}
           </button>
           {!showTrash && (
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-            >
-              <Plus size={20} />
-              New Scan
-            </button>
+            <>
+              {hasExamples && (
+                <button
+                  onClick={() => setRemoveExamplesModal(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200 rounded-lg transition text-sm"
+                  title="Remove example scans and start fresh"
+                >
+                  <RotateCcw size={16} />
+                  Start Fresh
+                </button>
+              )}
+              <button
+                onClick={() => setShowForm(!showForm)}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+              >
+                <Plus size={20} />
+                New Scan
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -590,6 +622,17 @@ export default function ScansPage() {
         onConfirm={handleDeleteScan}
         onCancel={closeDeleteModal}
         isLoading={deletingId !== null}
+      />
+
+      {/* Remove Example Scans Confirmation Modal */}
+      <ConfirmModal
+        isOpen={removeExamplesModal}
+        title="Start Fresh"
+        message="Remove all example scans? They will be moved to the trash where you can restore them later. New scans you create will not be affected."
+        confirmLabel="Remove Examples"
+        onConfirm={handleRemoveExamples}
+        onCancel={() => setRemoveExamplesModal(false)}
+        isLoading={removingExamples}
       />
     </div>
   );
