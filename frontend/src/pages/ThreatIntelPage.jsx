@@ -17,6 +17,7 @@ export default function ThreatIntelPage() {
   const [selectedThreat, setSelectedThreat] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [timeRange, setTimeRange] = useState(24); // 24h or 48h
+  const [cveFilter, setCveFilter] = useState('all');
 
   useEffect(() => {
     const fetchThreats = async () => {
@@ -127,11 +128,19 @@ export default function ThreatIntelPage() {
     return Math.max(1, ...timelineData.map(b => b.total));
   }, [timelineData]);
 
+  // Unique CVEs for dropdown
+  const uniqueCVEs = useMemo(() => {
+    const cves = [...new Set(threats.map(t => t.cve).filter(Boolean))];
+    cves.sort();
+    return cves;
+  }, [threats]);
+
   // Filtered threats
   const filteredThreats = useMemo(() => {
     return threats.filter(t => {
       if (filter !== 'all' && t.severity !== filter) return false;
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+      if (cveFilter !== 'all' && t.cve !== cveFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         const searchable = [t.name, t.type, t.description, t.source, t.target, t.cve, t.ip]
@@ -140,7 +149,7 @@ export default function ThreatIntelPage() {
       }
       return true;
     });
-  }, [threats, filter, statusFilter, searchQuery]);
+  }, [threats, filter, statusFilter, cveFilter, searchQuery]);
 
   const toggleExpand = (id) => {
     setExpandedThreat(expandedThreat === id ? null : id);
@@ -384,6 +393,23 @@ export default function ThreatIntelPage() {
 
         <div className="w-px h-6 bg-gray-700" />
 
+        {/* CVE filter dropdown */}
+        <div className="relative">
+          <select
+            value={cveFilter}
+            onChange={(e) => setCveFilter(e.target.value)}
+            className="appearance-none px-3 py-1.5 pr-7 bg-gray-700/50 border border-gray-600/50 rounded-lg text-xs text-gray-300 focus:border-blue-500/50 focus:outline-none cursor-pointer hover:bg-gray-700/70 transition"
+          >
+            <option value="all">All CVEs</option>
+            {uniqueCVEs.map(cve => (
+              <option key={cve} value={cve}>{cve}</option>
+            ))}
+          </select>
+          <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+        </div>
+
+        <div className="w-px h-6 bg-gray-700" />
+
         {/* Search */}
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -415,9 +441,9 @@ export default function ThreatIntelPage() {
         <div className="text-center py-20 text-gray-400">
           <ShieldOff size={48} className="mx-auto mb-4 opacity-50" />
           <p>No threats match your filters</p>
-          {(filter !== 'all' || statusFilter !== 'all' || searchQuery) && (
+          {(filter !== 'all' || statusFilter !== 'all' || cveFilter !== 'all' || searchQuery) && (
             <button
-              onClick={() => { setFilter('all'); setStatusFilter('all'); setSearchQuery(''); }}
+              onClick={() => { setFilter('all'); setStatusFilter('all'); setCveFilter('all'); setSearchQuery(''); }}
               className="mt-3 text-sm text-blue-400 hover:text-blue-300 transition"
             >
               Clear all filters
