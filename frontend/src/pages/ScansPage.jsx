@@ -300,7 +300,7 @@ export default function ScansPage() {
                       <button
                         onClick={(e) => openDeleteModal(e, latestScan)}
                         disabled={deletingId === latestScan.id}
-                        className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition"
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"
                         title="Delete scan"
                       >
                         {deletingId === latestScan.id ? (
@@ -361,7 +361,7 @@ export default function ScansPage() {
                             <button
                               onClick={(e) => openDeleteModal(e, scan)}
                               disabled={deletingId === scan.id}
-                              className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition"
+                              className="p-1.5 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition"
                               title="Delete scan"
                             >
                               {deletingId === scan.id ? (
@@ -370,7 +370,7 @@ export default function ScansPage() {
                                 <Trash2 size={13} />
                               )}
                             </button>
-                            <ArrowUpRight className="w-3.5 h-3.5 text-gray-600 opacity-0 group-hover:opacity-100 transition" />
+                            <ArrowUpRight className="w-3.5 h-3.5 text-gray-500 transition" />
                           </div>
                         </div>
                       </div>
