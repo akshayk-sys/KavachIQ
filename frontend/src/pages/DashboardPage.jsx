@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { dashboardAPI, scansAPI, complianceAPI } from '../services/api';
+import { dashboardAPI, scansAPI, complianceAPI, adminAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { 
   XAxis, YAxis, CartesianGrid, 
@@ -8,7 +8,8 @@ import {
 import { 
   Shield, AlertTriangle, TrendingUp, Clock, ChevronRight, 
   Activity, FileText, Lock, Server, Users, ExternalLink,
-  CheckCircle, XCircle, AlertCircle, Info, Eye
+  CheckCircle, XCircle, AlertCircle, Info, Eye,
+  ShieldOff
 } from 'lucide-react';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -21,6 +22,10 @@ export default function DashboardPage() {
   const [complianceStatus, setComplianceStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [animatedValues, setAnimatedValues] = useState({});
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [actionModal, setActionModal] = useState({ show: false, user: null, action: null });
+  const [actingUserId, setActingUserId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -40,6 +45,20 @@ export default function DashboardPage() {
         setThreats(threatsRes.data.threats);
         setScanHistory(historyRes.data.historyData);
         setComplianceStatus(soc2Res?.data);
+        
+        // Fetch active users if admin
+        if (metricsRes.data.isAdminView) {
+          try {
+            const usersRes = await adminAPI.getActiveUsers();
+            setUsers(usersRes.data.users);
+          } catch (e) {
+            console.error('Fetch users error:', e);
+          } finally {
+            setUsersLoading(false);
+          }
+        } else {
+          setUsersLoading(false);
+        }
       } catch (error) {
         console.error('Dashboard fetch error:', error);
       } finally {
@@ -85,6 +104,24 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  const handleBlockUser = async () => {
+    if (!actionModal.user) return;
+    const { user, action } = actionModal;
+    setActingUserId(user.id);
+    try {
+      if (action === 'block') await adminAPI.blockUser(user.id);
+      else if (action === 'unblock') await adminAPI.unblockUser(user.id);
+      else if (action === 'delete') await adminAPI.deleteUser(user.id);
+      const usersRes = await adminAPI.getActiveUsers();
+      setUsers(usersRes.data.users);
+    } catch (e) {
+      console.error('User action error:', e);
+    } finally {
+      setActingUserId(null);
+      setActionModal({ show: false, user: null, action: null });
+    }
+  };
 
   const getScoreColor = (score) => {
     if (score >= 80) return { text: 'text-green-500', ring: 'ring-green-500/30', bg: 'bg-green-500/10' };
@@ -177,19 +214,215 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Admin: Unique Users metric card */}
-      {isAdminView && metrics?.uniqueUsers !== undefined && (
-        <div className="bg-gray-800/50 backdrop-blur-sm p-5 rounded-xl border border-amber-500/20">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10">
-              <Users className="w-5 h-5 text-amber-400" />
-            </div>
-            <div>
-              <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Active Users</p>
-              <p className="text-2xl font-bold text-amber-400">{metrics.uniqueUsers}</p>
-              <p className="text-gray-600 text-xs mt-1">Users with scan activity</p>
+      {/* Admin: User Management */}
+      {isAdminView && (
+        <div className="bg-gray-800/50 backdrop-blur-sm p-5 rounded-xl border border-gray-700/50">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10">
+                <Users className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-amber-400">User Management</h2>
+                <p className="text-gray-500 text-xs mt-0.5">{users.length} registered users</p>
+              </div>
             </div>
           </div>
+
+          {usersLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-amber-400/30 border-t-amber-400 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-700/50">
+                    <th className="text-left py-3 px-3 text-gray-500 font-medium text-xs uppercase tracking-wider">User</th>
+                    <th className="text-left py-3 px-3 text-gray-500 font-medium text-xs uppercase tracking-wider">Role</th>
+                    <th className="text-left py-3 px-3 text-gray-500 font-medium text-xs uppercase tracking-wider">Status</th>
+                    <th className="text-left py-3 px-3 text-gray-500 font-medium text-xs uppercase tracking-wider">Last Active</th>
+                    <th className="text-right py-3 px-3 text-gray-500 font-medium text-xs uppercase tracking-wider">Scans</th>
+                    <th className="text-right py-3 px-3 text-gray-500 font-medium text-xs uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-700/30">
+                  {users.map((user) => {
+                    const isCurrentUser = user.id === useAuthStore.getState().user?.id;
+                    return (
+                      <tr key={user.id} className="hover:bg-gray-700/10 transition">
+                        <td className="py-3 px-3">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                              user.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-blue-500/20 text-blue-400'
+                            }`}>
+                              {user.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="text-gray-200 font-medium text-sm">
+                                {user.username}
+                                {isCurrentUser && <span className="text-amber-500 text-[10px] ml-1.5">(you)</span>}
+                              </p>
+                              <p className="text-gray-500 text-xs">{user.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                            user.role === 'admin' 
+                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20' 
+                              : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
+                          }`}>
+                            {user.role}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3">
+                          {user.status === 'blocked' ? (
+                            <span className="flex items-center gap-1.5 text-red-400 text-xs">
+                              <XCircle size={12} />
+                              Blocked
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1.5 text-green-400 text-xs">
+                              <CheckCircle size={12} />
+                              Active
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-3 text-gray-400 text-xs">
+                          {formatTimeAgo(user.lastActive)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-gray-300 text-sm font-medium">
+                          {user.scanCount}
+                        </td>
+                        <td className="py-3 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {!isCurrentUser && (
+                              <>
+                                {user.status === 'blocked' ? (
+                                  <button
+                                    onClick={() => setActionModal({ show: true, user, action: 'unblock' })}
+                                    disabled={actingUserId === user.id}
+                                    className="p-1.5 text-green-500 hover:bg-green-500/10 rounded-lg transition disabled:opacity-50"
+                                    title="Unblock user"
+                                  >
+                                    {actingUserId === user.id ? (
+                                      <div className="w-3.5 h-3.5 border-2 border-green-400/30 border-t-green-400 rounded-full animate-spin" />
+                                    ) : (
+                                      <CheckCircle size={14} />
+                                    )}
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => setActionModal({ show: true, user, action: 'block' })}
+                                    disabled={actingUserId === user.id}
+                                    className="p-1.5 text-yellow-500 hover:bg-yellow-500/10 rounded-lg transition disabled:opacity-50"
+                                    title="Block user"
+                                  >
+                                    {actingUserId === user.id ? (
+                                      <div className="w-3.5 h-3.5 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+                                    ) : (
+                                      <ShieldOff className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setActionModal({ show: true, user, action: 'delete' })}
+                                  disabled={actingUserId === user.id}
+                                  className="p-1.5 text-red-500 hover:bg-red-500/10 rounded-lg transition disabled:opacity-50"
+                                  title="Delete user"
+                                >
+                                  <XCircle size={14} />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Action Confirmation Modal */}
+          {actionModal.show && actionModal.user && (
+            <div
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+              onClick={() => setActionModal({ show: false, user: null, action: null })}
+            >
+              <div
+                className="bg-gray-800 border border-gray-700/50 rounded-xl w-full max-w-md shadow-2xl animate-scale-up"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className={`p-2 rounded-lg ${
+                      actionModal.action === 'delete' ? 'bg-red-500/15' :
+                      actionModal.action === 'block' || actionModal.action === 'unblock' ? 'bg-yellow-500/15' :
+                      'bg-blue-500/15'
+                    }`}>
+                      {actionModal.action === 'delete' ? (
+                        <AlertTriangle className="w-5 h-5 text-red-400" />
+                      ) : (
+                        <ShieldOff className="w-5 h-5 text-yellow-400" />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-white">
+                        {actionModal.action === 'block' ? 'Block User' :
+                         actionModal.action === 'unblock' ? 'Unblock User' :
+                         'Delete User'}
+                      </h3>
+                      <p className="text-xs text-gray-400 mt-0.5">{actionModal.user.email}</p>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-gray-300 mb-5">
+                    {actionModal.action === 'block'
+                      ? `Are you sure you want to block ${actionModal.user.username}? They will not be able to log in or perform any scans until unblocked.`
+                      : actionModal.action === 'unblock'
+                        ? `Are you sure you want to unblock ${actionModal.user.username}? They will regain access to their account.`
+                        : `Are you sure you want to permanently delete ${actionModal.user.username} and all their data? This action cannot be undone.`}
+                  </p>
+
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setActionModal({ show: false, user: null, action: null })}
+                      className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition text-sm"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleBlockUser}
+                      disabled={actingUserId === actionModal.user.id}
+                      className={`px-4 py-2 rounded-lg transition text-sm font-medium disabled:opacity-50 ${
+                        actionModal.action === 'delete'
+                          ? 'bg-red-600 hover:bg-red-500 text-white'
+                          : actionModal.action === 'block'
+                            ? 'bg-yellow-600 hover:bg-yellow-500 text-white'
+                            : 'bg-green-600 hover:bg-green-500 text-white'
+                      }`}
+                    >
+                      {actingUserId === actionModal.user.id ? (
+                        <span className="flex items-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          {actionModal.action === 'block' ? 'Blocking...' :
+                           actionModal.action === 'unblock' ? 'Unblocking...' :
+                           'Deleting...'}
+                        </span>
+                      ) : (
+                        actionModal.action === 'block' ? 'Block User' :
+                        actionModal.action === 'unblock' ? 'Unblock User' :
+                        'Delete User'
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -410,4 +643,20 @@ export default function DashboardPage() {
       </div>
     </div>
   );
+}
+
+// Helper: format time ago
+function formatTimeAgo(dateStr) {
+  if (!dateStr) return 'N/A';
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
 }

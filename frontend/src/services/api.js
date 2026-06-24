@@ -21,6 +21,7 @@ import {
   mockSupportedKeys,
   mockSOC2Report,
   mockISO27001Report,
+  mockActiveUsers,
   mockUpgradePlans
 } from './mockData';
 
@@ -384,6 +385,38 @@ export const trashAPI = {
       return { data: { success: true, count, message: `${count} example scan${count !== 1 ? 's' : ''} removed` } };
     }
     return api.post('/scans/remove-examples');
+  }
+};
+
+// ── Admin / User Management API ──────────────────────────────
+export const adminAPI = {
+  getActiveUsers: async () => {
+    if (isDemo) {
+      await delay();
+      return { data: { users: mockActiveUsers() } };
+    }
+    return api.get('/admin/users');
+  },
+  blockUser: async (userId) => {
+    if (isDemo) {
+      await delay(400);
+      return { data: { success: true, message: 'User blocked successfully' } };
+    }
+    return api.post(`/admin/users/${userId}/block`);
+  },
+  unblockUser: async (userId) => {
+    if (isDemo) {
+      await delay(400);
+      return { data: { success: true, message: 'User unblocked successfully' } };
+    }
+    return api.post(`/admin/users/${userId}/unblock`);
+  },
+  deleteUser: async (userId) => {
+    if (isDemo) {
+      await delay(400);
+      return { data: { success: true, message: 'User deleted successfully' } };
+    }
+    return api.delete(`/admin/users/${userId}`);
   }
 };
 

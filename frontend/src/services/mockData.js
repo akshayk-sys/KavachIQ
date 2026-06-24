@@ -1418,6 +1418,19 @@ export const mockISO27001Report = () => ({
   }
 });
 
+// ── Active Users (Admin) ─────────────────────────────────────
+export const mockActiveUsers = () => {
+  const now = Date.now();
+  return DEMO_USERS.map((user, i) => ({
+    ...user,
+    status: i === 3 ? 'blocked' : 'active',
+    lastActive: new Date(now - i * 7200000 - (i === 0 ? 0 : 3600000)).toISOString(),
+    scanCount: [24, 15, 8, 3][i],
+    blockedAt: i === 3 ? new Date(now - 604800000).toISOString() : null,
+    blockedBy: i === 3 ? 'admin' : null
+  }));
+};
+
 // ── Upgrade Plans ─────────────────────────────────────────────
 export const mockUpgradePlans = () => ({
   currentPlan: 'free',
