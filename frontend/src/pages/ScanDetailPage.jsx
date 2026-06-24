@@ -6,7 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import { 
   Shield, AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, ChevronUp,
   DollarSign, Users, TrendingDown, Target, BarChart3, FileText,
-  ExternalLink, Clock, Server, Lock, Trash2, ArrowLeft
+  ExternalLink, Clock, Server, Lock, Trash2, ArrowLeft, Bug, X
 } from 'lucide-react';
 
 export default function ScanDetailPage() {
@@ -20,6 +20,8 @@ export default function ScanDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState('findings');
   const [expandedSections, setExpandedSections] = useState({});
+  const [selectedCVE, setSelectedCVE] = useState(null);
+  const [showCVEModal, setShowCVEModal] = useState(false);
 
   useEffect(() => {
     const fetchScan = async () => {
@@ -262,12 +264,43 @@ export default function ScanDetailPage() {
               </div>
               {expandedSections.vulns !== false && (
                 <div className="space-y-3">
-                  {(findings.vulnerabilities.vulnerabilities || []).map((vuln, idx) => (
-                    <div key={idx} className="p-3 bg-gray-700/30 rounded-lg border-l-4 border-red-500">
-                      <p className="font-semibold text-sm">{vuln.type}</p>
-                      <p className="text-xs text-gray-400 mt-1">{vuln.recommendation}</p>
-                    </div>
-                  ))}
+                  {(findings.vulnerabilities.vulnerabilities || []).map((vuln, idx) => {
+                    // Extract CVE ID from the type field "[CVE-XXXX-XXXX] Name"
+                    const cveMatch = vuln.type?.match(/\[(CVE-[^\]]+)\]/);
+                    const cveId = cveMatch ? cveMatch[1] : null;
+                    const fullCVE = cveId ? (scan.vulnerabilities || []).find(v => v.cve === cveId || v.id === cveId) : null;
+                    const severity = fullCVE?.severity || 'medium';
+                    const cardColors = getSeverityColor(severity);
+                    
+                    return (
+                      <div
+                        key={idx}
+                        onClick={() => {
+                          setSelectedCVE(fullCVE || vuln);
+                          setShowCVEModal(true);
+                        }}
+                        className={`p-3 bg-gray-700/30 rounded-lg border-l-4 cursor-pointer transition hover:bg-gray-700/50 hover:border-l-[5px] ${cardColors.border}`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="font-semibold text-sm">{vuln.type}</p>
+                          {fullCVE?.score && (
+                            <span className={`ml-2 px-2 py-0.5 rounded text-xs font-bold ${cardColors.bg} ${cardColors.text}`}>
+                              CVSS {fullCVE.score}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{vuln.recommendation}</p>
+                        {fullCVE?.status && (
+                          <span className={`mt-2 inline-block text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                            fullCVE.status === 'open' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'
+                          }`}>
+                            {fullCVE.status === 'open' ? 'OPEN' : 'RESOLVED'}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
                   {findings.vulnerabilities.recommendations?.length > 0 && (
                     <div className="mt-4">
                       <p className="text-sm font-medium text-gray-400 mb-2">General Recommendations:</p>
@@ -608,6 +641,162 @@ export default function ScanDetailPage() {
           <ExternalLink className="w-4 h-4" />
           View Full Report in Google Docs
         </a>
+      )}
+
+      {/* CVE Detail Modal */}
+      {showCVEModal && selectedCVE && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowCVEModal(false)}
+        >
+          <div
+            className="bg-gray-800 border border-gray-700/50 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gray-800/95 backdrop-blur-md border-b border-gray-700/50 p-5 flex items-center justify-between rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-500/10 rounded-lg">
+                  <Bug className="w-5 h-5 text-red-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">CVE Details</h3>
+                  <p className="text-xs text-gray-500">{selectedCVE.cve || selectedCVE.id || 'Vulnerability Detail'}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCVEModal(false)}
+                className="p-2 text-gray-500 hover:text-gray-300 hover:bg-gray-700/30 rounded-lg transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Title & Score */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <h4 className="text-xl font-bold text-white">{selectedCVE.name || selectedCVE.type}</h4>
+                  {selectedCVE.description && (
+                    <p className="text-sm text-gray-400 mt-2 leading-relaxed">{selectedCVE.description}</p>
+                  )}
+                </div>
+                {selectedCVE.score && (
+                  <div className="flex flex-col items-center flex-shrink-0">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                      selectedCVE.score >= 9.0 ? 'bg-red-500/20 text-red-400' :
+                      selectedCVE.score >= 7.0 ? 'bg-orange-500/20 text-orange-400' :
+                      selectedCVE.score >= 5.0 ? 'bg-yellow-500/20 text-yellow-400' :
+                      'bg-green-500/20 text-green-400'
+                    }`}>
+                      <span className="text-xl font-bold">{selectedCVE.score}</span>
+                    </div>
+                    <span className="text-[10px] text-gray-500 mt-1">CVSS</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Severity & Status badges */}
+              <div className="flex flex-wrap gap-2">
+                {selectedCVE.severity && (
+                  <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${
+                    selectedCVE.severity === 'critical' ? 'bg-red-500/15 border-red-500/30 text-red-400' :
+                    selectedCVE.severity === 'high' ? 'bg-orange-500/15 border-orange-500/30 text-orange-400' :
+                    selectedCVE.severity === 'medium' ? 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400' :
+                    'bg-green-500/15 border-green-500/30 text-green-400'
+                  }`}>
+                    {selectedCVE.severity.toUpperCase()}
+                  </span>
+                )}
+                {selectedCVE.status && (
+                  <span className={`px-3 py-1 rounded-lg text-xs font-bold border ${
+                    selectedCVE.status === 'open'
+                      ? 'bg-red-500/15 border-red-500/30 text-red-400'
+                      : 'bg-green-500/15 border-green-500/30 text-green-400'
+                  }`}>
+                    {selectedCVE.status === 'open' ? 'OPEN' : 'RESOLVED'}
+                  </span>
+                )}
+                <span className="px-3 py-1 bg-blue-500/10 border border-blue-500/20 text-blue-400 rounded-lg text-xs font-bold">
+                  {selectedCVE.cve || selectedCVE.id}
+                </span>
+              </div>
+
+              {/* Description Section */}
+              {selectedCVE.description && (
+                <div className="p-4 bg-gray-700/20 rounded-xl border border-gray-700/30">
+                  <h5 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                    <Info className="w-4 h-4 text-blue-400" />
+                    Description
+                  </h5>
+                  <p className="text-sm text-gray-400 leading-relaxed">{selectedCVE.description}</p>
+                </div>
+              )}
+
+              {/* Potential Damage Section */}
+              {selectedCVE.damage && (
+                <div className="p-4 bg-red-500/5 rounded-xl border border-red-500/20">
+                  <h5 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4" />
+                    Potential Damage If Exploited
+                  </h5>
+                  <p className="text-sm text-gray-400 leading-relaxed">{selectedCVE.damage}</p>
+                </div>
+              )}
+
+              {/* Remediation Section */}
+              {(selectedCVE.remediation || selectedCVE.recommendation) && (
+                <div className="p-4 bg-green-500/5 rounded-xl border border-green-500/20">
+                  <h5 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4" />
+                    Remediation
+                  </h5>
+                  <p className="text-sm text-gray-400 leading-relaxed">{selectedCVE.remediation || selectedCVE.recommendation}</p>
+                </div>
+              )}
+
+              {/* CVE Reference */}
+              {selectedCVE.cve && (
+                <div className="p-4 bg-blue-500/5 rounded-xl border border-blue-500/20">
+                  <h5 className="text-sm font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                    <ExternalLink className="w-4 h-4" />
+                    References
+                  </h5>
+                  <div className="space-y-2">
+                    <a
+                      href={`https://nvd.nist.gov/vuln/detail/${selectedCVE.cve}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
+                    >
+                      <ExternalLink size={14} />
+                      NVD: {selectedCVE.cve}
+                    </a>
+                    <a
+                      href={`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${selectedCVE.cve}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition"
+                    >
+                      <ExternalLink size={14} />
+                      MITRE: {selectedCVE.cve}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 bg-gray-800/95 backdrop-blur-md border-t border-gray-700/50 p-4 flex justify-end rounded-b-2xl">
+              <button
+                onClick={() => setShowCVEModal(false)}
+                className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg transition text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
