@@ -22,7 +22,8 @@ import {
   mockSOC2Report,
   mockISO27001Report,
   mockActiveUsers,
-  mockUpgradePlans
+  mockUpgradePlans,
+  addAuditEntry
 } from './mockData';
 
 // ── Demo Mode Detection ──────────────────────────────────────
@@ -400,6 +401,8 @@ export const adminAPI = {
   blockUser: async (userId) => {
     if (isDemo) {
       await delay(400);
+      const currentUser = useAuthStore.getState().user;
+      addAuditEntry('user_blocked', { id: userId, username: userId }, `User ${userId} blocked by ${currentUser?.username || 'admin'}`);
       return { data: { success: true, message: 'User blocked successfully' } };
     }
     return api.post(`/admin/users/${userId}/block`);
@@ -407,6 +410,8 @@ export const adminAPI = {
   unblockUser: async (userId) => {
     if (isDemo) {
       await delay(400);
+      const currentUser = useAuthStore.getState().user;
+      addAuditEntry('user_unblocked', { id: userId, username: userId }, `User ${userId} unblocked by ${currentUser?.username || 'admin'}`);
       return { data: { success: true, message: 'User unblocked successfully' } };
     }
     return api.post(`/admin/users/${userId}/unblock`);
@@ -414,6 +419,8 @@ export const adminAPI = {
   deleteUser: async (userId) => {
     if (isDemo) {
       await delay(400);
+      const currentUser = useAuthStore.getState().user;
+      addAuditEntry('user_deleted', { id: userId, username: userId }, `User ${userId} deleted by ${currentUser?.username || 'admin'}`);
       return { data: { success: true, message: 'User deleted successfully' } };
     }
     return api.delete(`/admin/users/${userId}`);

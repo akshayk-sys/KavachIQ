@@ -1298,7 +1298,9 @@ export const mockAuditTrail = (resourceType, resourceId) => {
       status: i % 5 === 0 ? 'failure' : 'success'
     });
   }
-  return { entries, total: 25 };
+  // Prepend any admin audit entries (block/unblock/delete actions)
+  const all = [...adminAuditLog, ...entries];
+  return { entries: all, total: all.length };
 };
 
 export const mockAuditSummary = () => ({
@@ -1417,6 +1419,26 @@ export const mockISO27001Report = () => ({
     total: 12
   }
 });
+
+// ── Audit Log (for tracking admin actions) ───────────────────
+// In-memory array to persist audit entries for admin actions like block/unblock/delete.
+// These entries are prepended to the results from mockAuditTrail.
+let adminAuditLog = [];
+
+export const addAuditEntry = (action, user, details) => {
+  const currentUser = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('kavachiq_auth') || '{}')?.state?.user : null;
+  adminAuditLog.unshift({
+    id: `audit-admin-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    action,
+    resourceType: 'user',
+    resourceId: user.id,
+    user: currentUser?.email || 'admin@kavachiq.com',
+    ip: '10.0.0.1',
+    timestamp: new Date().toISOString(),
+    details,
+    status: 'success'
+  });
+};
 
 // ── Active Users (Admin) ─────────────────────────────────────
 export const mockActiveUsers = () => {
