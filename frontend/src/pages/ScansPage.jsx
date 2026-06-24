@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { scansAPI } from '../services/api';
+import { scansAPI, trashAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import ConfirmModal from '../components/ConfirmModal';
 import { 
   Zap, Plus, UserCog, Eye, Globe, Clock, ArrowUpRight,
   History, ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle,
-  Trash2
+  Trash2, RotateCcw
 } from 'lucide-react';
 
 export default function ScansPage() {
@@ -20,6 +20,9 @@ export default function ScansPage() {
   const [url, setUrl] = useState('');
   const [deletingId, setDeletingId] = useState(null);
   const [deleteModal, setDeleteModal] = useState({ open: false, scan: null });
+  const [showTrash, setShowTrash] = useState(false);
+  const [deletedScans, setDeletedScans] = useState([]);
+  const [loadingTrash, setLoadingTrash] = useState(false);
 
   useEffect(() => {
     fetchScans();
@@ -135,10 +138,63 @@ export default function ScansPage() {
       await scansAPI.deleteScan(scanId);
       setScans(prev => prev.filter(s => s.id !== scanId));
       closeDeleteModal();
+      // Refresh trash count
+      if (showTrash) fetchTrash();
     } catch (err) {
       console.error('Delete scan error:', err);
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const fetchTrash = async () => {
+    setLoadingTrash(true);
+    try {
+      const res = await trashAPI.getDeletedScans();
+      setDeletedScans(res.data.scans);
+    } catch (err) {
+      console.error('Fetch trash error:', err);
+    } finally {
+      setLoadingTrash(false);
+    }
+  };
+
+  const handleRestoreScan = async (scanId) => {
+    try {
+      await trashAPI.restoreScan(scanId);
+      // Refresh both lists
+      fetchScans();
+      fetchTrash();
+    } catch (err) {
+      console.error('Restore scan error:', err);
+    }
+  };
+
+  const handlePermanentDelete = async (scanId) => {
+    try {
+      await trashAPI.permanentDelete(scanId);
+      fetchTrash();
+    } catch (err) {
+      console.error('Permanent delete error:', err);
+    }
+  };
+
+  const handleEmptyTrash = async () => {
+    try {
+      await trashAPI.emptyTrash();
+      setDeletedScans([]);
+    } catch (err) {
+      console.error('Empty trash error:', err);
+    }
+  };
+
+  const toggleTrash = () => {
+    if (!showTrash) {
+      setShowTrash(true);
+      fetchTrash();
+    } else {
+      setShowTrash(false);
+      setDeletedScans([]);
     }
   };
 
@@ -147,18 +203,44 @@ export default function ScansPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold">Security Scans</h1>
+          <h1 className="text-3xl font-bold">
+            {showTrash ? 'Trash / Recycle Bin' : 'Security Scans'}
+          </h1>
           <p className="text-gray-400 text-sm mt-1">
-            {scans.length} scan{scans.length !== 1 ? 's' : ''} across {groupedScans.length} website{groupedScans.length !== 1 ? 's' : ''}
+            {showTrash
+              ? `${deletedScans.length} deleted scan${deletedScans.length !== 1 ? 's' : ''}`
+              : `${scans.length} scan${scans.length !== 1 ? 's' : ''} across ${groupedScans.length} website${groupedScans.length !== 1 ? 's' : ''}`
+            }
           </p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
-        >
-          <Plus size={20} />
-          New Scan
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={toggleTrash}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+              showTrash
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700/50 text-gray-400 hover:bg-gray-700 hover:text-gray-200'
+            }`}
+            title="View deleted scans"
+          >
+            <Trash2 size={18} />
+            Trash
+            {deletedScans.length > 0 && !showTrash && (
+              <span className="px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full">
+                {deletedScans.length}
+              </span>
+            )}
+          </button>
+          {!showTrash && (
+            <button
+              onClick={() => setShowForm(!showForm)}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+            >
+              <Plus size={20} />
+              New Scan
+            </button>
+          )}
+        </div>
       </div>
 
       {showForm && (
@@ -190,7 +272,101 @@ export default function ScansPage() {
         </div>
       )}
 
-      {loading ? (
+      {/* Trash View */}
+      {showTrash && (
+        <div>
+          {loadingTrash ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-center">
+                <Trash2 className="w-10 h-10 text-gray-500 mx-auto mb-3 animate-pulse" />
+                <p className="text-gray-400">Loading trash...</p>
+              </div>
+            </div>
+          ) : deletedScans.length === 0 ? (
+            <div className="text-center py-20 text-gray-400">
+              <Trash2 size={48} className="mx-auto mb-4 opacity-50" />
+              <p>Trash is empty</p>
+              <p className="text-sm text-gray-600 mt-2">Deleted scans will appear here so you can restore them</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {/* Empty Trash button */}
+              <div className="flex justify-end">
+                <button
+                  onClick={handleEmptyTrash}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-red-600/10 border border-red-500/20 text-red-400 hover:bg-red-600/20 rounded-lg transition text-xs"
+                >
+                  <Trash2 size={14} />
+                  Empty Trash
+                </button>
+              </div>
+
+              {deletedScans.map((scan) => (
+                <div
+                  key={scan.id}
+                  className="bg-gray-800/40 border border-gray-700/40 rounded-xl p-4 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="p-2 bg-red-500/10 rounded-lg flex-shrink-0">
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-200 truncate">
+                          {scan.website_url || scan.target || 'Unknown'}
+                        </span>
+                        {scan.severity && scan.severity !== 'none' && (
+                          <span className={`px-2 py-0.5 rounded text-xs font-semibold ${getSeverityBg(scan.severity)}`}>
+                            {scan.severity.toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                        <span>{scan.type || 'Security Scan'}</span>
+                        <span>•</span>
+                        <span title={formatFullDateTime(scan.created_at)}>
+                          {formatTimeAgo(scan.created_at)}
+                        </span>
+                        <span>•</span>
+                        <span className="text-gray-600">
+                          Deleted {scan.deletedAt ? formatTimeAgo(scan.deletedAt) : 'recently'}
+                        </span>
+                        {isAdmin && scan.user_email && (
+                          <>
+                            <span>•</span>
+                            <span className="text-amber-400/60">{scan.user_name || scan.user_email}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => handleRestoreScan(scan.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/10 border border-green-500/20 text-green-400 hover:bg-green-600/20 rounded-lg transition text-xs"
+                      title="Restore scan"
+                    >
+                      <RotateCcw size={13} />
+                      Restore
+                    </button>
+                    <button
+                      onClick={() => handlePermanentDelete(scan.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/10 border border-red-500/20 text-red-400 hover:bg-red-600/20 rounded-lg transition text-xs"
+                      title="Permanently delete"
+                    >
+                      <Trash2 size={13} />
+                      Delete Forever
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Active Scans View */}
+      {!showTrash && (loading ? (
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <Zap className="w-10 h-10 text-blue-500 mx-auto mb-3 animate-pulse" />
@@ -403,13 +579,13 @@ export default function ScansPage() {
             );
           })}
         </div>
-      )}
+      ))}
 
       {/* Delete Confirmation Modal */}
       <ConfirmModal
         isOpen={deleteModal.open}
         title="Delete Scan"
-        message={`Are you sure you want to delete this scan for ${deleteModal.scan?.website_url || deleteModal.scan?.target || 'this website'}? This will permanently remove the scan results, findings, and impact analysis.`}
+        message={`Are you sure you want to delete this scan for ${deleteModal.scan?.website_url || deleteModal.scan?.target || 'this website'}? It will be moved to the trash where you can restore it later.`}
         confirmLabel="Delete Scan"
         onConfirm={handleDeleteScan}
         onCancel={closeDeleteModal}

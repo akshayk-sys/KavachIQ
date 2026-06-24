@@ -2,6 +2,54 @@
 // Provides realistic mock data so the dashboard works without a backend.
 // Used automatically when deployed to Cloudflare (no localhost API).
 
+// ── In-Memory Mutation Store (Demo Mode) ─────────────────────
+// Persists user-created scans and deletions across re-fetches
+// so that new scans show up, deleted scans stay gone, and a
+// trash can is available.
+export const MockStore = {
+  _customScans: [],
+  _deletedScanIds: new Set(),
+  _deletedScans: [],
+
+  addScan(scan) {
+    this._customScans.push(scan);
+  },
+
+  softDeleteScan(scan) {
+    this._deletedScanIds.add(scan.id);
+    this._deletedScans.push({ ...scan, deletedAt: new Date().toISOString() });
+  },
+
+  restoreScan(scanId) {
+    this._deletedScanIds.delete(scanId);
+    const idx = this._deletedScans.findIndex(s => s.id === scanId);
+    if (idx !== -1) this._deletedScans.splice(idx, 1);
+  },
+
+  permanentDeleteScan(scanId) {
+    this._deletedScanIds.delete(scanId);
+    const idx = this._deletedScans.findIndex(s => s.id === scanId);
+    if (idx !== -1) this._deletedScans.splice(idx, 1);
+  },
+
+  emptyTrash() {
+    this._deletedScanIds.clear();
+    this._deletedScans = [];
+  },
+
+  isDeleted(scanId) {
+    return this._deletedScanIds.has(scanId);
+  },
+
+  getDeletedScans() {
+    return [...this._deletedScans];
+  },
+
+  getCustomScans() {
+    return [...this._customScans];
+  }
+};
+
 // ── Demo Users ────────────────────────────────────────────────
 export const DEMO_USERS = [
   { id: 'demo-user-001', username: 'demouser', email: 'demo@kavachiq.com', role: 'admin' },
@@ -65,17 +113,19 @@ const scanTargets = [
 ];
 
 export const mockScans = (page = 1, limit = 10, currentUser = null) => {
-  const scans = [];
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   
-  // Generate a shared pool of scans across all users
-  const allScans = [];
+  // Generate the base demo scan pool
+  const baseScans = [];
   for (let i = 0; i < 47; i++) {
     const userIdx = i % DEMO_USERS.length;
     const user = DEMO_USERS[userIdx];
     const severity = severities[Math.floor(Math.random() * severities.length)];
-    allScans.push({
-      id: `scan-${100 + i}`,
+    // Avoid generating a scan that was already deleted
+    const scanId = `scan-${100 + i}`;
+    if (MockStore.isDeleted(scanId)) continue;
+    baseScans.push({
+      id: scanId,
       type: scanTypes[i % scanTypes.length],
       target: scanTargets[i % scanTargets.length],
       website_url: scanTargets[i % scanTargets.length],
@@ -91,6 +141,13 @@ export const mockScans = (page = 1, limit = 10, currentUser = null) => {
       score: severity === 'critical' ? 92 : severity === 'high' ? 78 : severity === 'medium' ? 65 : 45
     });
   }
+
+  // Merge user-created scans that aren't deleted
+  const customScans = MockStore.getCustomScans().filter(s => !MockStore.isDeleted(s.id));
+  const allScans = [...customScans, ...baseScans];
+
+  // Sort all scans by created_at descending
+  allScans.sort((a, b) => new Date(b.created_at || b.startedAt) - new Date(a.created_at || a.startedAt));
 
   // Filter by user if not admin
   const filtered = isAdmin ? allScans : allScans.filter(s => s.user_id === currentUser?.id);
@@ -121,6 +178,39 @@ const getScanCreatedAt = (scanId) => {
 
 export const mockScanDetail = (scanId, currentUser = null) => {
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+  const isCustomScan = scanId.startsWith('scan-demo-');
+  
+  // For user-created scans, find it in MockStore or return sensible defaults
+  if (isCustomScan) {
+    const customScan = MockStore.getCustomScans().find(s => s.id === scanId);
+    if (customScan) {
+      return {
+        ...customScan,
+        status: 'completed',
+        severity: 'low',
+        vulnerabilitiesFound: 0,
+        summary: 'Scan completed. No vulnerabilities detected.',
+        vulnerabilities: []
+      };
+    }
+    // Fallback for unknown custom scan IDs
+    return {
+      id: scanId,
+      type: 'Security Scan',
+      target: 'Unknown',
+      website_url: 'Unknown',
+      created_at: new Date().toISOString(),
+      status: 'completed',
+      severity: 'none',
+      user_id: currentUser?.id || 'demo-user-001',
+      user_email: currentUser?.email || 'demo@kavachiq.com',
+      user_name: currentUser?.username || 'demouser',
+      vulnerabilitiesFound: 0,
+      summary: 'No results available.',
+      vulnerabilities: []
+    };
+  }
+
   const isOwnScan = currentUser && scanId.startsWith('scan-');
   const websiteUrl = getScanUrlById(scanId);
   const createdAt = getScanCreatedAt(scanId);

@@ -3,6 +3,7 @@ import { useAuthStore } from '../store/authStore';
 import {
   DEMO_USER,
   DEMO_TOKEN,
+  MockStore,
   mockDashboardMetrics,
   mockScans,
   mockScanDetail,
@@ -90,7 +91,23 @@ export const scansAPI = {
   createScan: async (data) => {
     if (isDemo) {
       await delay();
-      return { data: { id: 'scan-demo-' + Date.now(), ...data, status: 'in_progress', startedAt: new Date().toISOString() } };
+      const currentUser = useAuthStore.getState().user;
+      const newScan = {
+        id: 'scan-demo-' + Date.now(),
+        type: data.scan_type || 'Full Vulnerability',
+        website_url: data.website_url,
+        target: data.website_url,
+        created_at: new Date().toISOString(),
+        status: 'completed',
+        severity: 'none',
+        user_id: currentUser?.id || 'demo-user-001',
+        user_email: currentUser?.email || 'demo@kavachiq.com',
+        user_name: currentUser?.username || 'demouser',
+        vulnerabilitiesFound: 0,
+        score: 100
+      };
+      MockStore.addScan(newScan);
+      return { data: { ...newScan, message: 'Scan created' } };
     }
     return api.post('/scans', data);
   },
@@ -121,7 +138,22 @@ export const scansAPI = {
   deleteScan: async (id) => {
     if (isDemo) {
       await delay(400);
-      return { data: { success: true, message: 'Scan deleted' } };
+      // For demo mode, we need the full scan data for the trash.
+      // Try to find it from the current scans list via the MockStore.
+      // We soft-delete it (move to trash) instead of hard-deleting.
+      const currentUser = useAuthStore.getState().user;
+      const allScansResult = mockScans(1, 1000, currentUser);
+      const scanToDelete = allScansResult.scans.find(s => s.id === id);
+      if (scanToDelete) {
+        MockStore.softDeleteScan(scanToDelete);
+      } else {
+        // Fallback: check if it's already in trash
+        const alreadyDeleted = MockStore.getDeletedScans().find(s => s.id === id);
+        if (alreadyDeleted) {
+          MockStore.permanentDeleteScan(id);
+        }
+      }
+      return { data: { success: true, message: 'Scan moved to trash' } };
     }
     return api.delete(`/scans/${id}`);
   }
@@ -297,6 +329,41 @@ export const settingsAPI = {
       return { data: mockSupportedKeys() };
     }
     return api.get('/settings/keys/supported');
+  }
+};
+
+// ── Trash / Recycle Bin API (Demo Mode) ─────────────────────
+export const trashAPI = {
+  getDeletedScans: async () => {
+    if (isDemo) {
+      await delay(200);
+      return { data: { scans: MockStore.getDeletedScans() } };
+    }
+    return api.get('/scans/trash');
+  },
+  restoreScan: async (id) => {
+    if (isDemo) {
+      await delay(300);
+      MockStore.restoreScan(id);
+      return { data: { success: true, message: 'Scan restored from trash' } };
+    }
+    return api.post(`/scans/${id}/restore`);
+  },
+  permanentDelete: async (id) => {
+    if (isDemo) {
+      await delay(300);
+      MockStore.permanentDeleteScan(id);
+      return { data: { success: true, message: 'Scan permanently deleted' } };
+    }
+    return api.delete(`/scans/${id}/permanent`);
+  },
+  emptyTrash: async () => {
+    if (isDemo) {
+      await delay(400);
+      MockStore.emptyTrash();
+      return { data: { success: true, message: 'Trash emptied' } };
+    }
+    return api.delete('/scans/trash/empty');
   }
 };
 
