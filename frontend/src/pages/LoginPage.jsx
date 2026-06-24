@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { AlertCircle } from 'lucide-react';
+import kavachLogo from '/KavachIQ_logo2.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -64,7 +65,7 @@ export default function LoginPage() {
         <div className="bg-gray-800 rounded-lg shadow-2xl border border-gray-700 p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <img src="/KavachIQ_logo2.png" alt="KavachIQ" className="h-12 mx-auto mb-4" />
+            <img src={kavachLogo} alt="KavachIQ" className="h-12 mx-auto mb-4" />
             <h1 className="text-3xl font-bold text-white">KavachIQ</h1>
             <p className="text-gray-400 text-sm mt-2">Security Intelligence Platform</p>
           </div>

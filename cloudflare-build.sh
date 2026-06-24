@@ -24,6 +24,7 @@ cp styles.css dist/
 cp script.js dist/
 cp Code.gs dist/ 2>/dev/null || true
 cp favicon.ico dist/ 2>/dev/null || true
+cp KavachIQ_logo*.png dist/ 2>/dev/null || true
 cp -r assets/ dist/ 2>/dev/null || true
 
 # Step 4: Copy the React app build into dist/app/
