@@ -23,7 +23,10 @@ import {
   mockISO27001Report,
   mockActiveUsers,
   mockUpgradePlans,
-  addAuditEntry
+  addAuditEntry,
+  blockUserById,
+  unblockUserById,
+  deleteUserById
 } from './mockData';
 
 // ── Demo Mode Detection ──────────────────────────────────────
@@ -402,6 +405,7 @@ export const adminAPI = {
     if (isDemo) {
       await delay(400);
       const currentUser = useAuthStore.getState().user;
+      blockUserById(userId);
       addAuditEntry('user_blocked', { id: userId, username: userId }, `User ${userId} blocked by ${currentUser?.username || 'admin'}`);
       return { data: { success: true, message: 'User blocked successfully' } };
     }
@@ -411,6 +415,7 @@ export const adminAPI = {
     if (isDemo) {
       await delay(400);
       const currentUser = useAuthStore.getState().user;
+      unblockUserById(userId);
       addAuditEntry('user_unblocked', { id: userId, username: userId }, `User ${userId} unblocked by ${currentUser?.username || 'admin'}`);
       return { data: { success: true, message: 'User unblocked successfully' } };
     }
@@ -420,6 +425,7 @@ export const adminAPI = {
     if (isDemo) {
       await delay(400);
       const currentUser = useAuthStore.getState().user;
+      deleteUserById(userId);
       addAuditEntry('user_deleted', { id: userId, username: userId }, `User ${userId} deleted by ${currentUser?.username || 'admin'}`);
       return { data: { success: true, message: 'User deleted successfully' } };
     }

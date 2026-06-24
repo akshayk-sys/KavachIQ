@@ -1440,17 +1440,91 @@ export const addAuditEntry = (action, user, details) => {
   });
 };
 
+// ── Mutable User Store (Admin Actions) ──────────────────────
+// Allows blockUser, unblockUser, and deleteUser to actually modify user data.
+// All changes persist in localStorage so they survive page refreshes.
+const USER_STORE_KEY = 'kavachiq_user_store';
+
+let _userStore = [];
+let _userStoreInitialized = false;
+
+const _initUserStore = () => {
+  if (_userStoreInitialized) return;
+  _userStoreInitialized = true;
+  try {
+    const raw = localStorage.getItem(USER_STORE_KEY);
+    if (raw) {
+      _userStore = JSON.parse(raw);
+      return;
+    }
+  } catch (e) {
+    // ignore
+  }
+  // Initialize from DEMO_USERS
+  _userStore = DEMO_USERS.map((u, i) => ({
+    ...u,
+    _status: i === 3 ? 'blocked' : 'active',
+    _deleted: false
+  }));
+  _saveUserStore();
+};
+
+const _saveUserStore = () => {
+  try {
+    localStorage.setItem(USER_STORE_KEY, JSON.stringify(_userStore));
+  } catch (e) {
+    // ignore
+  }
+};
+
+/** Block a user by ID — sets status to 'blocked' */
+export const blockUserById = (userId) => {
+  _initUserStore();
+  const user = _userStore.find(u => u.id === userId);
+  if (user) {
+    user._status = 'blocked';
+    user.blockedAt = new Date().toISOString();
+    user.blockedBy = 'admin';
+    _saveUserStore();
+  }
+};
+
+/** Unblock a user by ID — sets status to 'active' */
+export const unblockUserById = (userId) => {
+  _initUserStore();
+  const user = _userStore.find(u => u.id === userId);
+  if (user) {
+    user._status = 'active';
+    user.blockedAt = null;
+    user.blockedBy = null;
+    _saveUserStore();
+  }
+};
+
+/** Delete a user by ID — marks them as deleted so they won't appear in the list */
+export const deleteUserById = (userId) => {
+  _initUserStore();
+  const user = _userStore.find(u => u.id === userId);
+  if (user) {
+    user._deleted = true;
+    _saveUserStore();
+  }
+};
+
 // ── Active Users (Admin) ─────────────────────────────────────
 export const mockActiveUsers = () => {
+  _initUserStore();
   const now = Date.now();
-  return DEMO_USERS.map((user, i) => ({
-    ...user,
-    status: i === 3 ? 'blocked' : 'active',
-    lastActive: new Date(now - i * 7200000 - (i === 0 ? 0 : 3600000)).toISOString(),
-    scanCount: [24, 15, 8, 3][i],
-    blockedAt: i === 3 ? new Date(now - 604800000).toISOString() : null,
-    blockedBy: i === 3 ? 'admin' : null
-  }));
+  return _userStore
+    .filter(u => !u._deleted)
+    .map(({ _status, _deleted, ...user }, i) => ({
+      ...user,
+      status: _status || 'active',
+      lastActive: new Date(now - i * 7200000 - (i === 0 ? 0 : 3600000)).toISOString(),
+      scanCount: [24, 15, 8, 3][i % 4],
+      blockedAt: user.blockedAt || null,
+      blockedBy: user.blockedBy || null
+    }));
 };
 
 // ── Upgrade Plans ─────────────────────────────────────────────
