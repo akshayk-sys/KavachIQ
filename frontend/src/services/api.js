@@ -4,6 +4,7 @@ import {
   DEMO_USER,
   DEMO_TOKEN,
   MockStore,
+  generateScanReport,
   mockDashboardMetrics,
   mockScans,
   mockScanDetail,
@@ -90,24 +91,36 @@ export const authAPI = {
 export const scansAPI = {
   createScan: async (data) => {
     if (isDemo) {
-      await delay();
+      await delay(800);
       const currentUser = useAuthStore.getState().user;
+      const scanId = 'scan-demo-' + Date.now();
+      
+      // Generate a complete scan report for the website being scanned
+      const scanUrl = data.website_url;
+      const report = generateScanReport(scanUrl);
+      
       const newScan = {
-        id: 'scan-demo-' + Date.now(),
+        id: scanId,
         type: data.scan_type || 'Full Vulnerability',
-        website_url: data.website_url,
-        target: data.website_url,
+        website_url: scanUrl,
+        target: scanUrl,
         created_at: new Date().toISOString(),
         status: 'completed',
-        severity: 'none',
         user_id: currentUser?.id || 'demo-user-001',
         user_email: currentUser?.email || 'demo@kavachiq.com',
         user_name: currentUser?.username || 'demouser',
-        vulnerabilitiesFound: 0,
-        score: 100
+        // Store the full report data so mockScanDetail returns it directly
+        findings: report.findings,
+        ssl_status: report.ssl_status,
+        impact_analysis: report.impact_analysis,
+        severity: report.severity,
+        vulnerabilitiesFound: report.vulnerabilitiesFound,
+        score: report.score,
+        summary: report.summary,
+        vulnerabilities: report.vulnerabilities
       };
       MockStore.addScan(newScan);
-      return { data: { ...newScan, message: 'Scan created' } };
+      return { data: { ...newScan, message: 'Scan completed. Full report generated.' } };
     }
     return api.post('/scans', data);
   },
