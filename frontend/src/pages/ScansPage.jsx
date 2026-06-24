@@ -84,6 +84,17 @@ export default function ScansPage() {
     return date.toLocaleDateString();
   };
 
+  const formatFullDateTime = (dateStr) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   // Group scans by website URL, sorted newest-first per group
   const groupedScans = useMemo(() => {
     const groups = {};
@@ -223,7 +234,7 @@ export default function ScansPage() {
                       <div className="flex items-center gap-3 text-xs text-gray-500 mt-0.5">
                         <span className="flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          Latest: {formatTimeAgo(latestScan.created_at || latestScan.startedAt)}
+                          Latest: {formatFullDateTime(latestScan.created_at || latestScan.startedAt)}
                         </span>
                         <span className="flex items-center gap-1">
                           <History className="w-3 h-3" />
@@ -278,7 +289,10 @@ export default function ScansPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
-                          <span>{formatTimeAgo(latestScan.created_at || latestScan.startedAt)}</span>
+                          <span title={formatFullDateTime(latestScan.created_at || latestScan.startedAt)}>
+                            {formatTimeAgo(latestScan.created_at || latestScan.startedAt)}
+                          </span>
+                          <span className="text-gray-600">{formatFullDateTime(latestScan.created_at || latestScan.startedAt)}</span>
                           <span>•</span>
                           <span className="capitalize">{latestScan.status?.replace('_', ' ')}</span>
                           {latestScan.score && (
@@ -346,6 +360,7 @@ export default function ScansPage() {
                               </div>
                               <p className="text-xs text-gray-600 mt-0.5">
                                 {formatTimeAgo(scan.created_at || scan.startedAt)}
+                                <span className="text-gray-600 ml-1.5">{formatFullDateTime(scan.created_at || scan.startedAt)}</span>
                                 <span className="mx-1.5">•</span>
                                 <span className="capitalize">{scan.status?.replace('_', ' ')}</span>
                               </p>
