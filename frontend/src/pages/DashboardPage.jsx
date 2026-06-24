@@ -9,7 +9,7 @@ import {
   Shield, AlertTriangle, TrendingUp, Clock, ChevronRight, 
   Activity, FileText, Lock, Server, Users, ExternalLink,
   CheckCircle, XCircle, AlertCircle, Info, Eye,
-  ShieldOff
+  ShieldOff, X, Target, Network, Bug, ShieldAlert
 } from 'lucide-react';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
@@ -28,6 +28,17 @@ export default function DashboardPage() {
   const [usersLoading, setUsersLoading] = useState(true);
   const [actionModal, setActionModal] = useState({ show: false, user: null, action: null });
   const [actingUserId, setActingUserId] = useState(null);
+  const [selectedThreat, setSelectedThreat] = useState(null);
+
+  // Close threat detail modal on Escape key
+  useEffect(() => {
+    if (!selectedThreat) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedThreat(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedThreat]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -502,7 +513,8 @@ export default function DashboardPage() {
               threats.map((threat, i) => (
                 <div
                   key={threat.id}
-                  className="group p-3 bg-gray-700/30 rounded-lg border border-gray-600/50 hover:border-gray-500 transition-all duration-200 animate-slide-up"
+                  onClick={() => setSelectedThreat(threat)}
+                  className="group p-3 bg-gray-700/30 rounded-lg border border-gray-600/50 hover:border-gray-500 hover:bg-gray-700/50 cursor-pointer transition-all duration-200 animate-slide-up"
                   style={{ animationDelay: `${i * 50}ms` }}
                 >
                   <div className="flex items-start gap-3">
@@ -518,7 +530,7 @@ export default function DashboardPage() {
                       }`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{threat.name || threat.type || 'Unknown Threat'}</p>
+                      <p className="text-sm font-medium truncate group-hover:text-white transition-colors">{threat.name || threat.type || 'Unknown Threat'}</p>
                       <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{threat.description || threat.threat_description || ''}</p>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-xs font-semibold flex-shrink-0 ${
@@ -535,6 +547,159 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Threat Detail Modal */}
+      {selectedThreat && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in"
+          onClick={() => setSelectedThreat(null)}
+        >
+          <div
+            className="bg-gray-800 border border-gray-700/50 rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-gray-800 border-b border-gray-700/50 p-5 flex items-start justify-between gap-4 z-10">
+              <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-xl ${
+                  selectedThreat.severity === 'critical' ? 'bg-red-500/15' :
+                  selectedThreat.severity === 'high' ? 'bg-orange-500/15' :
+                  'bg-yellow-500/15'
+                }`}>
+                  <ShieldAlert className={`w-6 h-6 ${
+                    selectedThreat.severity === 'critical' ? 'text-red-400' :
+                    selectedThreat.severity === 'high' ? 'text-orange-400' :
+                    'text-yellow-400'
+                  }`} />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-lg font-bold text-white truncate">{selectedThreat.name}</h3>
+                  <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      selectedThreat.severity === 'critical' ? 'bg-red-500/20 text-red-300' :
+                      selectedThreat.severity === 'high' ? 'bg-orange-500/20 text-orange-300' :
+                      'bg-yellow-500/20 text-yellow-300'
+                    }`}>
+                      {selectedThreat.severity?.toUpperCase()}
+                    </span>
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                      selectedThreat.status === 'active' ? 'bg-red-500/10 text-red-300' :
+                      selectedThreat.status === 'investigating' ? 'bg-blue-500/10 text-blue-300' :
+                      'bg-green-500/10 text-green-300'
+                    }`}>
+                      {selectedThreat.status}
+                    </span>
+                    {selectedThreat.cve && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                        {selectedThreat.cve}
+                      </span>
+                    )}
+                    {selectedThreat.mitre_id && (
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+                        {selectedThreat.mitre_id}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedThreat(null)}
+                className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition flex-shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {/* Description */}
+              <div>
+                <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                  <Info size={14} className="text-blue-400" />
+                  Description
+                </h4>
+                <p className="text-sm text-gray-400 leading-relaxed">
+                  {selectedThreat.longDescription || selectedThreat.description}
+                </p>
+              </div>
+
+              {/* Key Details Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { label: 'Attack Vector', value: selectedThreat.attack_vector, icon: Target, color: 'text-pink-400' },
+                  { label: 'Source IP', value: selectedThreat.ip, icon: Network, color: 'text-blue-400' },
+                  { label: 'Target Asset', value: selectedThreat.target, icon: Server, color: 'text-green-400' },
+                  { label: 'Confidence', value: selectedThreat.score ? `${selectedThreat.score}%` : 'N/A', icon: TrendingUp, color: 'text-yellow-400' },
+                  { label: 'Threat Source', value: selectedThreat.source, icon: Bug, color: 'text-purple-400' },
+                  { label: 'Affected Products', value: selectedThreat.affected_products, icon: Shield, color: 'text-orange-400' }
+                ].map((item) => (
+                  <div key={item.label} className="p-3 bg-gray-700/30 rounded-lg border border-gray-600/30">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <item.icon size={12} className={item.color} />
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">{item.label}</span>
+                    </div>
+                    <p className="text-sm text-gray-200 font-medium truncate" title={item.value}>{item.value || 'N/A'}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Impact Assessment */}
+              {selectedThreat.impact && (
+                <div className="p-4 bg-red-900/10 border border-red-500/20 rounded-lg">
+                  <h4 className="text-sm font-semibold text-red-400 mb-2 flex items-center gap-2">
+                    <AlertTriangle size={14} />
+                    Impact Assessment
+                  </h4>
+                  <p className="text-sm text-gray-400 leading-relaxed">{selectedThreat.impact}</p>
+                </div>
+              )}
+
+              {/* Mitigation */}
+              {selectedThreat.mitigation && (
+                <div className="p-4 bg-green-900/10 border border-green-500/20 rounded-lg">
+                  <h4 className="text-sm font-semibold text-green-400 mb-2 flex items-center gap-2">
+                    <Shield size={14} />
+                    Mitigation Steps
+                  </h4>
+                  <p className="text-sm text-gray-400 leading-relaxed">{selectedThreat.mitigation}</p>
+                </div>
+              )}
+
+              {/* IoCs */}
+              {selectedThreat.iocs && selectedThreat.iocs.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-300 mb-2 flex items-center gap-2">
+                    <AlertCircle size={14} className="text-cyan-400" />
+                    Indicators of Compromise (IoCs)
+                  </h4>
+                  <div className="space-y-1">
+                    {selectedThreat.iocs.map((ioc, idx) => (
+                      <div
+                        key={idx}
+                        className="px-3 py-2 bg-gray-700/30 rounded-lg border border-gray-600/30 text-xs font-mono text-gray-400 hover:text-gray-200 hover:border-gray-500 transition"
+                      >
+                        {ioc}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Footer - Timestamp and Close */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-700/50">
+                <span className="text-xs text-gray-600">
+                  Reported {formatTimeAgo(selectedThreat.timestamp)} · {selectedThreat.type}
+                </span>
+                <button
+                  onClick={() => setSelectedThreat(null)}
+                  className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-lg text-sm transition"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Row - Compliance & Security Posture */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
