@@ -3,7 +3,7 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/app/',
+  base: process.env.VITE_BASE_URL || '/app/',
   server: {
     port: 3000,
     proxy: {

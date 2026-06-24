@@ -23,9 +23,13 @@ const AdminRoute = ({ children }) => {
   return children;
 };
 
+// Basename defaults to '/app' for Cloudflare deployment.
+// Docker deployment overrides via VITE_APP_BASENAME env var (= '/').
+const BASENAME = import.meta.env.VITE_APP_BASENAME || '/app';
+
 export default function App() {
   return (
-    <Router basename="/app">
+    <Router basename={BASENAME}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         

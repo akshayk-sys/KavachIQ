@@ -47,6 +47,9 @@ services:
     build:
       context: .
       dockerfile: infrastructure/Dockerfile.frontend
+      args:
+        VITE_BASE_URL: /
+        VITE_APP_BASENAME: /
     environment:
       VITE_API_URL: ${API_URL:-http://localhost:5000/api}
     ports:
