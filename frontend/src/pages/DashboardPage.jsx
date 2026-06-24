@@ -518,8 +518,8 @@ export default function DashboardPage() {
                       }`} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{threat.threat_type}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{threat.threat_description}</p>
+                      <p className="text-sm font-medium truncate">{threat.name || threat.type || 'Unknown Threat'}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{threat.description || threat.threat_description || ''}</p>
                     </div>
                     <span className={`px-2 py-0.5 rounded text-xs font-semibold flex-shrink-0 ${
                       threat.severity === 'critical' ? 'bg-red-500/20 text-red-300' :
