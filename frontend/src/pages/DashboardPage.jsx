@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { dashboardAPI, scansAPI, complianceAPI, adminAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { 
@@ -141,6 +141,20 @@ export default function DashboardPage() {
     if (score >= 60) return { text: 'text-yellow-500', ring: 'ring-yellow-500/30', bg: 'bg-yellow-500/10' };
     return { text: 'text-red-500', ring: 'ring-red-500/30', bg: 'bg-red-500/10' };
   };
+
+  // Compute severity-prioritized animation delays — critical threats enter first
+  const severityAnimationDelays = useMemo(() => {
+    if (!threats.length) return {};
+    const severityPriority = { critical: 0, high: 1, medium: 2, low: 3, none: 4 };
+    const sorted = [...threats].sort(
+      (a, b) => (severityPriority[a.severity] ?? 5) - (severityPriority[b.severity] ?? 5)
+    );
+    const delayMap = {};
+    sorted.forEach((t, idx) => {
+      delayMap[t.id] = idx * 50;
+    });
+    return delayMap;
+  }, [threats]);
 
   const scoreColor = getScoreColor(animatedValues.averageSecurityScore || 0);
 
@@ -515,7 +529,7 @@ export default function DashboardPage() {
                   key={threat.id}
                   onClick={() => setSelectedThreat(threat)}
                   className="group p-3 bg-gray-700/30 rounded-lg border border-gray-600/50 hover:border-gray-500 hover:bg-gray-700/50 cursor-pointer transition-all duration-200 animate-slide-up"
-                  style={{ animationDelay: `${i * 50}ms` }}
+                  style={{ animationDelay: `${severityAnimationDelays[threat.id] || i * 50}ms` }}
                 >
                   <div className="flex items-start gap-3">
                     <div className={`p-1.5 rounded-lg ${
