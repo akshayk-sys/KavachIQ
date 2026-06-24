@@ -117,6 +117,13 @@ export const scansAPI = {
       return { data: { historyData: mockDashboardMetrics(currentUser).scanHistory, isAdminView: currentUser?.role === 'admin' } };
     }
     return api.get('/dashboard/scan-history');
+  },
+  deleteScan: async (id) => {
+    if (isDemo) {
+      await delay(400);
+      return { data: { success: true, message: 'Scan deleted' } };
+    }
+    return api.delete(`/scans/${id}`);
   }
 };
 

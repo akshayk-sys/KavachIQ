@@ -4,7 +4,8 @@ import { scansAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { 
   Zap, Plus, UserCog, Eye, Globe, Clock, ArrowUpRight,
-  History, ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle
+  History, ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle,
+  Trash2
 } from 'lucide-react';
 
 export default function ScansPage() {
@@ -16,6 +17,8 @@ export default function ScansPage() {
   const [showForm, setShowForm] = useState(false);
   const [expandedWebsites, setExpandedWebsites] = useState({});
   const [url, setUrl] = useState('');
+  const [deletingId, setDeletingId] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
   useEffect(() => {
     fetchScans();
@@ -101,6 +104,29 @@ export default function ScansPage() {
 
   const toggleWebsite = (url) => {
     setExpandedWebsites(prev => ({ ...prev, [url]: !prev[url] }));
+  };
+
+  const handleDeleteScan = async (e, scanId) => {
+    e.stopPropagation();
+    if (confirmDelete !== scanId) {
+      setConfirmDelete(scanId);
+      return;
+    }
+    setDeletingId(scanId);
+    try {
+      await scansAPI.deleteScan(scanId);
+      setScans(prev => prev.filter(s => s.id !== scanId));
+      setConfirmDelete(null);
+    } catch (err) {
+      console.error('Delete scan error:', err);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const cancelDelete = (e) => {
+    e.stopPropagation();
+    setConfirmDelete(null);
   };
 
   return (
@@ -268,7 +294,33 @@ export default function ScansPage() {
                           {latestScan.severity.toUpperCase()}
                         </span>
                       )}
-                      <ArrowUpRight className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition" />
+                      {/* Delete button */}
+                      <button
+                        onClick={(e) => handleDeleteScan(e, latestScan.id)}
+                        disabled={deletingId === latestScan.id}
+                        className={`p-1.5 rounded-lg transition ${
+                          confirmDelete === latestScan.id
+                            ? 'bg-red-500/20 text-red-400'
+                            : 'text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
+                        }`}
+                        title={confirmDelete === latestScan.id ? 'Click again to confirm delete' : 'Delete scan'}
+                      >
+                        {deletingId === latestScan.id ? (
+                          <span className="animate-spin">◌</span>
+                        ) : confirmDelete === latestScan.id ? (
+                          <span className="text-xs font-bold px-1">Confirm?</span>
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                      </button>
+                      {confirmDelete === latestScan.id && (
+                        <button
+                          onClick={cancelDelete}
+                          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700/30 transition"
+                        >
+                          <XCircle size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -279,11 +331,13 @@ export default function ScansPage() {
                     {websiteScans.slice(1).map((scan) => (
                       <div
                         key={scan.id}
-                        onClick={() => navigate(`/scans/${scan.id}`)}
-                        className="p-3.5 pl-14 cursor-pointer hover:bg-gray-700/20 transition group"
+                        className="p-3.5 pl-14 hover:bg-gray-700/20 transition group"
                       >
                         <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            onClick={() => navigate(`/scans/${scan.id}`)}
+                            className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                          >
                             <div className={`p-1 rounded-full flex-shrink-0 ${
                               scan.status === 'completed' ? 'bg-green-500/15 text-green-400' :
                               scan.status === 'in_progress' ? 'bg-yellow-500/15 text-yellow-400' :
@@ -309,13 +363,40 @@ export default function ScansPage() {
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-shrink-0">
                             {scan.severity && (
                               <span className={`inline-block px-2 py-0.5 rounded text-white text-xs font-semibold ${getSeverityColor(scan.severity)}`}>
                                 {scan.severity.toUpperCase()}
                               </span>
                             )}
-                            <ArrowUpRight className="w-3.5 h-3.5 text-gray-600 group-hover:text-gray-400 transition" />
+                            {/* Delete button */}
+                            <button
+                              onClick={(e) => handleDeleteScan(e, scan.id)}
+                              disabled={deletingId === scan.id}
+                              className={`p-1.5 rounded-lg transition ${
+                                confirmDelete === scan.id
+                                  ? 'bg-red-500/20 text-red-400'
+                                  : 'text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
+                              }`}
+                              title={confirmDelete === scan.id ? 'Click again to confirm delete' : 'Delete scan'}
+                            >
+                              {deletingId === scan.id ? (
+                                <span className="animate-spin">◌</span>
+                              ) : confirmDelete === scan.id ? (
+                                <span className="text-xs font-bold px-1">Confirm?</span>
+                              ) : (
+                                <Trash2 size={13} />
+                              )}
+                            </button>
+                            {confirmDelete === scan.id && (
+                              <button
+                                onClick={cancelDelete}
+                                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700/30 transition"
+                              >
+                                <XCircle size={13} />
+                              </button>
+                            )}
+                            <ArrowUpRight className="w-3.5 h-3.5 text-gray-600 opacity-0 group-hover:opacity-100 transition" />
                           </div>
                         </div>
                       </div>

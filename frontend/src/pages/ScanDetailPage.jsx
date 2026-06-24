@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { scansAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { 
   Shield, AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, ChevronUp,
   DollarSign, Users, TrendingDown, Target, BarChart3, FileText,
-  ExternalLink, Clock, Server, Lock
+  ExternalLink, Clock, Server, Lock, Trash2, ArrowLeft
 } from 'lucide-react';
 
 export default function ScanDetailPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const { scanId } = useParams();
+  const navigate = useNavigate();
   const [scan, setScan] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [activeTab, setActiveTab] = useState('findings');
   const [expandedSections, setExpandedSections] = useState({});
 
@@ -33,6 +36,19 @@ export default function ScanDetailPage() {
 
   const toggleSection = (key) => {
     setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleDeleteScan = async () => {
+    setDeleting(true);
+    try {
+      await scansAPI.deleteScan(scanId);
+      navigate('/scans', { replace: true });
+    } catch (err) {
+      console.error('Delete scan error:', err);
+      setShowDeleteConfirm(false);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (loading) {
@@ -77,7 +93,14 @@ export default function ScanDetailPage() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-2 mb-1">
+            <button
+              onClick={() => navigate('/scans')}
+              className="p-1.5 text-gray-500 hover:text-gray-300 hover:bg-gray-700/30 rounded-lg transition"
+              title="Back to scans"
+            >
+              <ArrowLeft size={18} />
+            </button>
             <h1 className="text-xl lg:text-2xl font-bold truncate max-w-md">{scan.website_url}</h1>
             <span className={`px-3 py-0.5 rounded text-xs font-semibold ${getSeverityColor(scan.severity).bg} ${getSeverityColor(scan.severity).text}`}>
               {scan.severity?.toUpperCase() || 'PENDING'}
@@ -93,6 +116,34 @@ export default function ScanDetailPage() {
               <Users className="w-3 h-3" />
               Scanned by {scan.user_name || scan.user_email}
             </p>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          {/* Delete button */}
+          {!showDeleteConfirm ? (
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-500/20 text-red-400 hover:bg-red-600/20 rounded-lg transition text-sm"
+            >
+              <Trash2 size={16} />
+              Delete
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDeleteScan}
+                disabled={deleting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition text-sm"
+              >
+                {deleting ? 'Deleting...' : 'Confirm Delete'}
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-400 hover:text-gray-300 rounded-lg transition text-sm"
+              >
+                Cancel
+              </button>
+            </div>
           )}
         </div>
       </div>

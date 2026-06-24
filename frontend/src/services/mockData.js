@@ -101,16 +101,36 @@ export const mockScans = (page = 1, limit = 10, currentUser = null) => {
   return { scans: pageScans, total, page, limit, totalPages: Math.ceil(total / limit), isAdminView: isAdmin };
 };
 
+// Lookup the correct website URL for a scan ID using the same deterministic formula as mockScans
+const getScanUrlById = (scanId) => {
+  if (!scanId) return 'https://example.com';
+  // scan-100 → index 0, scan-101 → index 1, etc.
+  const match = scanId.match(/scan-(\d+)/);
+  if (!match) return 'https://example.com';
+  const idx = parseInt(match[1]) - 100;
+  return scanTargets[Math.abs(idx) % scanTargets.length];
+};
+
+// Compute the correct created_at for a scan ID (same offset as mockScans)
+const getScanCreatedAt = (scanId) => {
+  const match = scanId.match(/scan-(\d+)/);
+  if (!match) return '2026-06-23T08:30:00Z';
+  const idx = parseInt(match[1]) - 100;
+  return new Date(Date.now() - Math.abs(idx) * 3600000).toISOString();
+};
+
 export const mockScanDetail = (scanId, currentUser = null) => {
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   const isOwnScan = currentUser && scanId.startsWith('scan-');
+  const websiteUrl = getScanUrlById(scanId);
+  const createdAt = getScanCreatedAt(scanId);
   
   return {
   id: scanId,
   type: 'Full Vulnerability Scan',
-  target: 'https://example.com',
-  website_url: 'https://example.com',
-  created_at: '2026-06-23T08:30:00Z',
+  target: websiteUrl,
+  website_url: websiteUrl,
+  created_at: createdAt,
   status: 'completed',
   severity: 'high',
   user_id: isOwnScan ? currentUser.id : 'demo-user-002',
