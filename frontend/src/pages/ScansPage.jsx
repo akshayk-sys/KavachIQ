@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { scansAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
 import { 
   Zap, Plus, UserCog, Eye, Globe, Clock, ArrowUpRight,
   History, ChevronDown, ChevronUp, CheckCircle2, XCircle, AlertTriangle,
@@ -18,7 +19,7 @@ export default function ScansPage() {
   const [expandedWebsites, setExpandedWebsites] = useState({});
   const [url, setUrl] = useState('');
   const [deletingId, setDeletingId] = useState(null);
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleteModal, setDeleteModal] = useState({ open: false, scan: null });
 
   useEffect(() => {
     fetchScans();
@@ -106,27 +107,28 @@ export default function ScansPage() {
     setExpandedWebsites(prev => ({ ...prev, [url]: !prev[url] }));
   };
 
-  const handleDeleteScan = async (e, scanId) => {
+  const openDeleteModal = (e, scan) => {
     e.stopPropagation();
-    if (confirmDelete !== scanId) {
-      setConfirmDelete(scanId);
-      return;
-    }
+    setDeleteModal({ open: true, scan });
+  };
+
+  const closeDeleteModal = () => {
+    setDeleteModal({ open: false, scan: null });
+  };
+
+  const handleDeleteScan = async () => {
+    const scanId = deleteModal.scan?.id;
+    if (!scanId) return;
     setDeletingId(scanId);
     try {
       await scansAPI.deleteScan(scanId);
       setScans(prev => prev.filter(s => s.id !== scanId));
-      setConfirmDelete(null);
+      closeDeleteModal();
     } catch (err) {
       console.error('Delete scan error:', err);
     } finally {
       setDeletingId(null);
     }
-  };
-
-  const cancelDelete = (e) => {
-    e.stopPropagation();
-    setConfirmDelete(null);
   };
 
   return (
@@ -296,31 +298,17 @@ export default function ScansPage() {
                       )}
                       {/* Delete button */}
                       <button
-                        onClick={(e) => handleDeleteScan(e, latestScan.id)}
+                        onClick={(e) => openDeleteModal(e, latestScan)}
                         disabled={deletingId === latestScan.id}
-                        className={`p-1.5 rounded-lg transition ${
-                          confirmDelete === latestScan.id
-                            ? 'bg-red-500/20 text-red-400'
-                            : 'text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
-                        }`}
-                        title={confirmDelete === latestScan.id ? 'Click again to confirm delete' : 'Delete scan'}
+                        className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition"
+                        title="Delete scan"
                       >
                         {deletingId === latestScan.id ? (
-                          <span className="animate-spin">◌</span>
-                        ) : confirmDelete === latestScan.id ? (
-                          <span className="text-xs font-bold px-1">Confirm?</span>
+                          <span className="w-4 h-4 border-2 border-gray-500 border-t-white rounded-full animate-spin block" />
                         ) : (
                           <Trash2 size={14} />
                         )}
                       </button>
-                      {confirmDelete === latestScan.id && (
-                        <button
-                          onClick={cancelDelete}
-                          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700/30 transition"
-                        >
-                          <XCircle size={14} />
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -371,31 +359,17 @@ export default function ScansPage() {
                             )}
                             {/* Delete button */}
                             <button
-                              onClick={(e) => handleDeleteScan(e, scan.id)}
+                              onClick={(e) => openDeleteModal(e, scan)}
                               disabled={deletingId === scan.id}
-                              className={`p-1.5 rounded-lg transition ${
-                                confirmDelete === scan.id
-                                  ? 'bg-red-500/20 text-red-400'
-                                  : 'text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100'
-                              }`}
-                              title={confirmDelete === scan.id ? 'Click again to confirm delete' : 'Delete scan'}
+                              className="p-1.5 rounded-lg text-gray-600 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition"
+                              title="Delete scan"
                             >
                               {deletingId === scan.id ? (
-                                <span className="animate-spin">◌</span>
-                              ) : confirmDelete === scan.id ? (
-                                <span className="text-xs font-bold px-1">Confirm?</span>
+                                <span className="w-3.5 h-3.5 border-2 border-gray-500 border-t-white rounded-full animate-spin block" />
                               ) : (
                                 <Trash2 size={13} />
                               )}
                             </button>
-                            {confirmDelete === scan.id && (
-                              <button
-                                onClick={cancelDelete}
-                                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-700/30 transition"
-                              >
-                                <XCircle size={13} />
-                              </button>
-                            )}
                             <ArrowUpRight className="w-3.5 h-3.5 text-gray-600 opacity-0 group-hover:opacity-100 transition" />
                           </div>
                         </div>
@@ -415,6 +389,17 @@ export default function ScansPage() {
           })}
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModal.open}
+        title="Delete Scan"
+        message={`Are you sure you want to delete this scan for ${deleteModal.scan?.website_url || deleteModal.scan?.target || 'this website'}? This will permanently remove the scan results, findings, and impact analysis.`}
+        confirmLabel="Delete Scan"
+        onConfirm={handleDeleteScan}
+        onCancel={closeDeleteModal}
+        isLoading={deletingId !== null}
+      />
     </div>
   );
 }

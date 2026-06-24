@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { scansAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmModal from '../components/ConfirmModal';
 import { 
   Shield, AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, ChevronUp,
   DollarSign, Users, TrendingDown, Target, BarChart3, FileText,
@@ -16,7 +17,7 @@ export default function ScanDetailPage() {
   const [scan, setScan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [activeTab, setActiveTab] = useState('findings');
   const [expandedSections, setExpandedSections] = useState({});
 
@@ -45,7 +46,7 @@ export default function ScanDetailPage() {
       navigate('/scans', { replace: true });
     } catch (err) {
       console.error('Delete scan error:', err);
-      setShowDeleteConfirm(false);
+      setShowDeleteModal(false);
     } finally {
       setDeleting(false);
     }
@@ -120,31 +121,13 @@ export default function ScanDetailPage() {
         </div>
         <div className="flex items-center gap-3">
           {/* Delete button */}
-          {!showDeleteConfirm ? (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-500/20 text-red-400 hover:bg-red-600/20 rounded-lg transition text-sm"
-            >
-              <Trash2 size={16} />
-              Delete
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleDeleteScan}
-                disabled={deleting}
-                className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition text-sm"
-              >
-                {deleting ? 'Deleting...' : 'Confirm Delete'}
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-400 hover:text-gray-300 rounded-lg transition text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600/10 border border-red-500/20 text-red-400 hover:bg-red-600/20 rounded-lg transition text-sm"
+          >
+            <Trash2 size={16} />
+            Delete
+          </button>
         </div>
       </div>
 
@@ -626,6 +609,17 @@ export default function ScanDetailPage() {
           View Full Report in Google Docs
         </a>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={showDeleteModal}
+        title="Delete Scan"
+        message={`Are you sure you want to delete this scan for ${scan.website_url}? This will permanently remove the scan results, findings, and impact analysis.`}
+        confirmLabel="Delete Scan"
+        onConfirm={handleDeleteScan}
+        onCancel={() => setShowDeleteModal(false)}
+        isLoading={deleting}
+      />
     </div>
   );
 }
