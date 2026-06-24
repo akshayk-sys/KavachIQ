@@ -17,6 +17,8 @@ const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState(null);
   const [isAdminView, setIsAdminView] = useState(false);
+  const currentUserRole = useAuthStore(s => s.user?.role);
+  const isAdminUser = currentUserRole === 'admin' || currentUserRole === 'super_admin';
   const [threats, setThreats] = useState([]);
   const [scanHistory, setScanHistory] = useState([]);
   const [complianceStatus, setComplianceStatus] = useState(null);
@@ -214,8 +216,8 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Admin: User Management */}
-      {isAdminView && (
+      {/* Admin: User Management — gated by API check AND client-side role guard */}
+      {isAdminUser && isAdminView && (
         <div className="bg-gray-800/50 backdrop-blur-sm p-5 rounded-xl border border-gray-700/50">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">

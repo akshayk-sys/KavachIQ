@@ -15,6 +15,14 @@ const PrivateRoute = ({ children }) => {
   return token ? children : <Navigate to="/login" />;
 };
 
+const AdminRoute = ({ children }) => {
+  const { token, user } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  if (!token) return <Navigate to="/login" />;
+  if (!isAdmin) return <Navigate to="/" />;
+  return children;
+};
+
 export default function App() {
   return (
     <Router basename="/app">
@@ -34,7 +42,7 @@ export default function App() {
           <Route path="/threats" element={<ThreatIntelPage />} />
           <Route path="/audit-logs" element={<AuditLogsPage />} />
           <Route path="/upgrade" element={<UpgradePage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/settings" element={<AdminRoute><SettingsPage /></AdminRoute>} />
         </Route>
       </Routes>
     </Router>
