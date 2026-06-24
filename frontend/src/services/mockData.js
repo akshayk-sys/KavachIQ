@@ -2,51 +2,171 @@
 // Provides realistic mock data so the dashboard works without a backend.
 // Used automatically when deployed to Cloudflare (no localhost API).
 
-// ── In-Memory Mutation Store (Demo Mode) ─────────────────────
-// Persists user-created scans and deletions across re-fetches
-// so that new scans show up, deleted scans stay gone, and a
-// trash can is available.
+// ── Persistent Mutation Store (Demo Mode) ────────────────────
+// Persists user-created scans, deletions, and trash to localStorage
+// so all data survives page refreshes. Seeds stable example scans
+// only on very first visit — no random/garbage data ever generated.
+
+const STORAGE_KEY = 'kavachiq_mock_store';
+
+// Stable example scans seeded on first visit — fully deterministic, no Math.random
+function createExampleScans() {
+  const now = Date.now();
+  const users = [
+    { id: 'demo-user-001', email: 'demo@kavachiq.com', username: 'demouser' },
+    { id: 'demo-user-002', email: 'alice@company.com', username: 'alice' }
+  ];
+  return [
+    {
+      id: 'scan-example-1',
+      type: 'Full Vulnerability',
+      website_url: 'https://example.com',
+      target: 'https://example.com',
+      created_at: new Date(now - 3600000).toISOString(),
+      status: 'completed',
+      severity: 'medium',
+      user_id: users[0].id,
+      user_email: users[0].email,
+      user_name: users[0].username,
+      vulnerabilitiesFound: 5,
+      score: 72,
+      duration: '2m 34s'
+    },
+    {
+      id: 'scan-example-2',
+      type: 'SSL Check',
+      website_url: 'https://shop.example.com',
+      target: 'https://shop.example.com',
+      created_at: new Date(now - 7200000).toISOString(),
+      status: 'completed',
+      severity: 'low',
+      user_id: users[1].id,
+      user_email: users[1].email,
+      user_name: users[1].username,
+      vulnerabilitiesFound: 2,
+      score: 88,
+      duration: '1m 12s'
+    },
+    {
+      id: 'scan-example-3',
+      type: 'Malware Scan',
+      website_url: 'https://blog.example.com',
+      target: 'https://blog.example.com',
+      created_at: new Date(now - 10800000).toISOString(),
+      status: 'completed',
+      severity: 'none',
+      user_id: users[0].id,
+      user_email: users[0].email,
+      user_name: users[0].username,
+      vulnerabilitiesFound: 0,
+      score: 95,
+      duration: '3m 05s'
+    }
+  ];
+}
+
 export const MockStore = {
   _customScans: [],
   _deletedScanIds: new Set(),
   _deletedScans: [],
+  _initialized: false,
+
+  _save() {
+    try {
+      const data = {
+        customScans: this._customScans,
+        deletedScanIds: Array.from(this._deletedScanIds),
+        deletedScans: this._deletedScans
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      // localStorage might be full or unavailable
+      console.warn('MockStore save failed:', e);
+    }
+  },
+
+  _load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        this._customScans = data.customScans || [];
+        this._deletedScanIds = new Set(data.deletedScanIds || []);
+        this._deletedScans = data.deletedScans || [];
+        return true; // had existing data
+      }
+    } catch (e) {
+      console.warn('MockStore load failed:', e);
+    }
+    return false; // no existing data
+  },
+
+  _ensureInitialized() {
+    if (this._initialized) return;
+    this._initialized = true;
+    const hadData = this._load();
+    // Seed stable example scans only on very first visit
+    if (!hadData) {
+      const examples = createExampleScans();
+      this._customScans = examples;
+      this._save();
+    }
+  },
 
   addScan(scan) {
+    this._ensureInitialized();
     this._customScans.push(scan);
+    this._save();
   },
 
   softDeleteScan(scan) {
+    this._ensureInitialized();
     this._deletedScanIds.add(scan.id);
     this._deletedScans.push({ ...scan, deletedAt: new Date().toISOString() });
+    this._save();
   },
 
   restoreScan(scanId) {
+    this._ensureInitialized();
     this._deletedScanIds.delete(scanId);
     const idx = this._deletedScans.findIndex(s => s.id === scanId);
     if (idx !== -1) this._deletedScans.splice(idx, 1);
+    this._save();
   },
 
   permanentDeleteScan(scanId) {
+    this._ensureInitialized();
     this._deletedScanIds.delete(scanId);
     const idx = this._deletedScans.findIndex(s => s.id === scanId);
     if (idx !== -1) this._deletedScans.splice(idx, 1);
+    this._save();
   },
 
   emptyTrash() {
+    this._ensureInitialized();
     this._deletedScanIds.clear();
     this._deletedScans = [];
+    this._save();
   },
 
   isDeleted(scanId) {
+    this._ensureInitialized();
     return this._deletedScanIds.has(scanId);
   },
 
   getDeletedScans() {
+    this._ensureInitialized();
     return [...this._deletedScans];
   },
 
   getCustomScans() {
+    this._ensureInitialized();
     return [...this._customScans];
+  },
+
+  getAllScans() {
+    this._ensureInitialized();
+    return this._customScans.filter(s => !this._deletedScanIds.has(s.id));
   }
 };
 
@@ -115,38 +235,10 @@ const scanTargets = [
 export const mockScans = (page = 1, limit = 10, currentUser = null) => {
   const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
   
-  // Generate the base demo scan pool
-  const baseScans = [];
-  for (let i = 0; i < 47; i++) {
-    const userIdx = i % DEMO_USERS.length;
-    const user = DEMO_USERS[userIdx];
-    const severity = severities[Math.floor(Math.random() * severities.length)];
-    // Avoid generating a scan that was already deleted
-    const scanId = `scan-${100 + i}`;
-    if (MockStore.isDeleted(scanId)) continue;
-    baseScans.push({
-      id: scanId,
-      type: scanTypes[i % scanTypes.length],
-      target: scanTargets[i % scanTargets.length],
-      website_url: scanTargets[i % scanTargets.length],
-      created_at: new Date(Date.now() - i * 3600000).toISOString(),
-      status: scanStatuses[i % scanStatuses.length],
-      severity,
-      user_id: user.id,
-      user_email: user.email,
-      user_name: user.username,
-      vulnerabilitiesFound: severity === 'none' ? 0 : Math.floor(Math.random() * 15) + 1,
-      completed_at: i < 6 ? new Date(Date.now() - i * 3600000 + 120000).toISOString() : null,
-      duration: `${Math.floor(Math.random() * 5) + 1}m ${Math.floor(Math.random() * 60)}s`,
-      score: severity === 'critical' ? 92 : severity === 'high' ? 78 : severity === 'medium' ? 65 : 45
-    });
-  }
+  // Get active scans from persistent store — no random/garbage generation
+  const allScans = MockStore.getAllScans();
 
-  // Merge user-created scans that aren't deleted
-  const customScans = MockStore.getCustomScans().filter(s => !MockStore.isDeleted(s.id));
-  const allScans = [...customScans, ...baseScans];
-
-  // Sort all scans by created_at descending
+  // Sort by created_at descending
   allScans.sort((a, b) => new Date(b.created_at || b.startedAt) - new Date(a.created_at || a.startedAt));
 
   // Filter by user if not admin
@@ -158,22 +250,11 @@ export const mockScans = (page = 1, limit = 10, currentUser = null) => {
   return { scans: pageScans, total, page, limit, totalPages: Math.ceil(total / limit), isAdminView: isAdmin };
 };
 
-// Lookup the correct website URL for a scan ID using the same deterministic formula as mockScans
-const getScanUrlById = (scanId) => {
-  if (!scanId) return 'https://example.com';
-  // scan-100 → index 0, scan-101 → index 1, etc.
-  const match = scanId.match(/scan-(\d+)/);
-  if (!match) return 'https://example.com';
-  const idx = parseInt(match[1]) - 100;
-  return scanTargets[Math.abs(idx) % scanTargets.length];
-};
-
-// Compute the correct created_at for a scan ID (same offset as mockScans)
-const getScanCreatedAt = (scanId) => {
-  const match = scanId.match(/scan-(\d+)/);
-  if (!match) return '2026-06-23T08:30:00Z';
-  const idx = parseInt(match[1]) - 100;
-  return new Date(Date.now() - Math.abs(idx) * 3600000).toISOString();
+// Lookup a scan from the persistent store by ID
+const findScanById = (scanId) => {
+  const all = MockStore.getAllScans();
+  const deleted = MockStore.getDeletedScans();
+  return all.find(s => s.id === scanId) || deleted.find(s => s.id === scanId);
 };
 
 export const mockScanDetail = (scanId, currentUser = null) => {
@@ -211,22 +292,27 @@ export const mockScanDetail = (scanId, currentUser = null) => {
     };
   }
 
-  const isOwnScan = currentUser && scanId.startsWith('scan-');
-  const websiteUrl = getScanUrlById(scanId);
-  const createdAt = getScanCreatedAt(scanId);
+  // Look up scan data from persistent store for correct URL/times
+  const existingScan = findScanById(scanId);
   
+  const websiteUrl = existingScan?.website_url || existingScan?.target || 'https://example.com';
+  const createdAt = existingScan?.created_at || new Date().toISOString();
+  const userId = existingScan?.user_id || currentUser?.id || 'demo-user-002';
+  const userEmail = existingScan?.user_email || currentUser?.email || 'alice@company.com';
+  const userName = existingScan?.user_name || currentUser?.username || 'alice';
+
   return {
   id: scanId,
-  type: 'Full Vulnerability Scan',
+  type: existingScan?.type || 'Full Vulnerability Scan',
   target: websiteUrl,
   website_url: websiteUrl,
   created_at: createdAt,
-  status: 'completed',
-  severity: 'high',
-  user_id: isOwnScan ? currentUser.id : 'demo-user-002',
-  user_email: isOwnScan ? currentUser.email : 'alice@company.com',
-  user_name: isOwnScan ? currentUser.username : 'alice',
-  vulnerabilitiesFound: 12,
+  status: existingScan?.status || 'completed',
+  severity: existingScan?.severity || 'high',
+  user_id: userId,
+  user_email: userEmail,
+  user_name: userName,
+  vulnerabilitiesFound: existingScan?.vulnerabilitiesFound ?? 12,
   summary: 'Found 12 vulnerabilities: 2 critical, 3 high, 4 medium, 3 low',
   vulnerabilities: [
     { id: 'VULN-001', name: 'SQL Injection', severity: 'critical', cvss: 9.8, status: 'open', description: 'SQL injection in login form parameter' },

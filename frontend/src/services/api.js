@@ -138,20 +138,13 @@ export const scansAPI = {
   deleteScan: async (id) => {
     if (isDemo) {
       await delay(400);
-      // For demo mode, we need the full scan data for the trash.
-      // Try to find it from the current scans list via the MockStore.
-      // We soft-delete it (move to trash) instead of hard-deleting.
-      const currentUser = useAuthStore.getState().user;
-      const allScansResult = mockScans(1, 1000, currentUser);
-      const scanToDelete = allScansResult.scans.find(s => s.id === id);
+      // Find the scan from the persistent store and soft-delete it
+      const scanToDelete = MockStore.getAllScans().find(s => s.id === id);
       if (scanToDelete) {
         MockStore.softDeleteScan(scanToDelete);
       } else {
-        // Fallback: check if it's already in trash
-        const alreadyDeleted = MockStore.getDeletedScans().find(s => s.id === id);
-        if (alreadyDeleted) {
-          MockStore.permanentDeleteScan(id);
-        }
+        // Already in trash — permanently delete
+        MockStore.permanentDeleteScan(id);
       }
       return { data: { success: true, message: 'Scan moved to trash' } };
     }
