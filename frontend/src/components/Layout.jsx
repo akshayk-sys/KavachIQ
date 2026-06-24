@@ -5,7 +5,7 @@ import { useSocket } from '../hooks/useSocket';
 import { 
   LogOut, BarChart3, Zap, AlertCircle, FileText, Menu, X, Crown,
   Bell, CheckCheck, Info, AlertTriangle, Shield, XCircle,
-  Settings
+  Settings, UserCog
 } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import clsx from 'clsx';
@@ -157,6 +157,19 @@ export default function Layout() {
             <Shield className="w-8 h-8 text-blue-500" />
           )}
         </div>
+
+        {/* Role Badge */}
+        {useAuthStore.getState().isAdmin() && (
+          <div className={clsx(
+            'px-4 py-2',
+            sidebarOpen ? '' : 'flex justify-center'
+          )}>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/15 border border-amber-500/30 rounded-full text-amber-400 text-xs font-semibold">
+              <UserCog size={12} />
+              {sidebarOpen && 'Super Admin'}
+            </span>
+          </div>
+        )}
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-6 space-y-1">

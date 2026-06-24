@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { dashboardAPI, scansAPI, complianceAPI } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import { 
   XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, AreaChart, Area
@@ -7,13 +8,14 @@ import {
 import { 
   Shield, AlertTriangle, TrendingUp, Clock, ChevronRight, 
   Activity, FileText, Lock, Server, Users, ExternalLink,
-  CheckCircle, XCircle, AlertCircle, Info
+  CheckCircle, XCircle, AlertCircle, Info, Eye
 } from 'lucide-react';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState(null);
+  const [isAdminView, setIsAdminView] = useState(false);
   const [threats, setThreats] = useState([]);
   const [scanHistory, setScanHistory] = useState([]);
   const [complianceStatus, setComplianceStatus] = useState(null);
@@ -34,6 +36,7 @@ export default function DashboardPage() {
         ]);
 
         setMetrics(metricsRes.data.metrics);
+        setIsAdminView(metricsRes.data.isAdminView || false);
         setThreats(threatsRes.data.threats);
         setScanHistory(historyRes.data.historyData);
         setComplianceStatus(soc2Res?.data);
@@ -100,6 +103,12 @@ export default function DashboardPage() {
           <p className="text-gray-400 text-sm mt-1">Real-time security posture overview</p>
         </div>
         <div className="flex items-center gap-3">
+          {isAdminView && (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+              <Eye className="w-4 h-4 text-amber-400" />
+              <span className="text-xs text-amber-400 font-medium">Admin View — All Users</span>
+            </div>
+          )}
           <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-lg">
             <Activity className="w-4 h-4 text-green-400" />
             <span className="text-xs text-green-400 font-medium">System Active</span>
@@ -167,6 +176,22 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* Admin: Unique Users metric card */}
+      {isAdminView && metrics?.uniqueUsers !== undefined && (
+        <div className="bg-gray-800/50 backdrop-blur-sm p-5 rounded-xl border border-amber-500/20">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-amber-500/10">
+              <Users className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Active Users</p>
+              <p className="text-2xl font-bold text-amber-400">{metrics.uniqueUsers}</p>
+              <p className="text-gray-600 text-xs mt-1">Users with scan activity</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Scan Activity Chart */}

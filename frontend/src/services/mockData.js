@@ -2,91 +2,121 @@
 // Provides realistic mock data so the dashboard works without a backend.
 // Used automatically when deployed to Cloudflare (no localhost API).
 
-// ── Demo User ─────────────────────────────────────────────────
-export const DEMO_USER = {
-  id: 'demo-user-001',
-  username: 'demouser',
-  email: 'demo@kavachiq.com',
-  role: 'admin'
-};
+// ── Demo Users ────────────────────────────────────────────────
+export const DEMO_USERS = [
+  { id: 'demo-user-001', username: 'demouser', email: 'demo@kavachiq.com', role: 'admin' },
+  { id: 'demo-user-002', username: 'alice', email: 'alice@company.com', role: 'user' },
+  { id: 'demo-user-003', username: 'bob', email: 'bob@company.com', role: 'user' },
+  { id: 'demo-user-004', username: 'charlie', email: 'charlie@company.com', role: 'user' }
+];
 
+export const DEMO_USER = DEMO_USERS[0];
 export const DEMO_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.demo-token-kavachiq';
 
 // ── Dashboard Metrics ─────────────────────────────────────────
-export const mockDashboardMetrics = () => ({
-  totalScans: 147,
-  vulnerabilitiesFound: 89,
-  criticalThreats: 3,
-  highThreats: 12,
-  mediumThreats: 34,
-  lowThreats: 40,
-  assetsMonitored: 12,
-  scansToday: 7,
-  riskScore: 'B+',
-  riskScoreTrend: 'improving',
-  lastAuditDate: '2026-06-23',
-  activeThreats: 18,
-  resolvedThreats: 156,
-  uptime: 99.97,
-  scanHistory: [
-    { date: '2026-06-17', count: 12 },
-    { date: '2026-06-18', count: 9 },
-    { date: '2026-06-19', count: 15 },
-    { date: '2026-06-20', count: 8 },
-    { date: '2026-06-21', count: 11 },
-    { date: '2026-06-22', count: 14 },
-    { date: '2026-06-23', count: 7 }
-  ],
-  threatDistribution: [
-    { name: 'Critical', value: 3, color: '#ef4444' },
-    { name: 'High', value: 12, color: '#f97316' },
-    { name: 'Medium', value: 34, color: '#eab308' },
-    { name: 'Low', value: 40, color: '#22c55e' }
-  ]
-});
+export const mockDashboardMetrics = (currentUser = null) => {
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+  
+  return {
+    totalScans: isAdmin ? 147 : 42,
+    vulnerabilitiesFound: isAdmin ? 89 : 23,
+    criticalThreats: isAdmin ? 3 : 1,
+    highThreats: isAdmin ? 12 : 4,
+    mediumThreats: isAdmin ? 34 : 10,
+    lowThreats: isAdmin ? 40 : 8,
+    assetsMonitored: isAdmin ? 12 : 3,
+    scansToday: isAdmin ? 7 : 2,
+    riskScore: 'B+',
+    riskScoreTrend: 'improving',
+    lastAuditDate: '2026-06-23',
+    activeThreats: isAdmin ? 18 : 5,
+    resolvedThreats: isAdmin ? 156 : 37,
+    uptime: 99.97,
+    uniqueUsers: isAdmin ? 4 : undefined,
+    scanHistory: [
+      { date: '2026-06-17', count: isAdmin ? 12 : 3 },
+      { date: '2026-06-18', count: isAdmin ? 9 : 2 },
+      { date: '2026-06-19', count: isAdmin ? 15 : 4 },
+      { date: '2026-06-20', count: isAdmin ? 8 : 1 },
+      { date: '2026-06-21', count: isAdmin ? 11 : 3 },
+      { date: '2026-06-22', count: isAdmin ? 14 : 5 },
+      { date: '2026-06-23', count: isAdmin ? 7 : 2 }
+    ],
+    threatDistribution: [
+      { name: 'Critical', value: isAdmin ? 3 : 1, color: '#ef4444' },
+      { name: 'High', value: isAdmin ? 12 : 4, color: '#f97316' },
+      { name: 'Medium', value: isAdmin ? 34 : 10, color: '#eab308' },
+      { name: 'Low', value: isAdmin ? 40 : 8, color: '#22c55e' }
+    ]
+  };
+};
 
 // ── Scans ─────────────────────────────────────────────────────
 let scanIdCounter = 100;
 const scanTypes = ['Quick Scan', 'Full Vulnerability', 'SSL Check', 'Malware Scan', 'Port Scan', 'Compliance Check', 'CVE Match'];
 const scanStatuses = ['completed', 'completed', 'completed', 'in_progress', 'completed', 'failed', 'completed'];
 const severities = ['critical', 'high', 'medium', 'low', 'none'];
+const scanTargets = [
+  'https://example.com',
+  'https://shop.example.com',
+  'https://blog.example.com',
+  'https://admin.example.com',
+  'https://api.example.com'
+];
 
-export const mockScans = (page = 1, limit = 10) => {
+export const mockScans = (page = 1, limit = 10, currentUser = null) => {
   const scans = [];
-  const total = 47;
-  const start = (page - 1) * limit;
-  const count = Math.min(limit, total - start);
-
-  for (let i = 0; i < count; i++) {
-    const idx = start + i;
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+  
+  // Generate a shared pool of scans across all users
+  const allScans = [];
+  for (let i = 0; i < 47; i++) {
+    const userIdx = i % DEMO_USERS.length;
+    const user = DEMO_USERS[userIdx];
     const severity = severities[Math.floor(Math.random() * severities.length)];
-    scans.push({
-      id: `scan-${100 + idx}`,
-      type: scanTypes[idx % scanTypes.length],
-      target: `https://example${idx % 5}.com`,
-      status: scanStatuses[idx % scanStatuses.length],
+    allScans.push({
+      id: `scan-${100 + i}`,
+      type: scanTypes[i % scanTypes.length],
+      target: scanTargets[i % scanTargets.length],
+      website_url: scanTargets[i % scanTargets.length],
+      created_at: new Date(Date.now() - i * 3600000).toISOString(),
+      status: scanStatuses[i % scanStatuses.length],
       severity,
+      user_id: user.id,
+      user_email: user.email,
+      user_name: user.username,
       vulnerabilitiesFound: severity === 'none' ? 0 : Math.floor(Math.random() * 15) + 1,
-      startedAt: new Date(Date.now() - idx * 3600000).toISOString(),
-      completedAt: idx < 6 ? new Date(Date.now() - idx * 3600000 + 120000).toISOString() : null,
+      completed_at: i < 6 ? new Date(Date.now() - i * 3600000 + 120000).toISOString() : null,
       duration: `${Math.floor(Math.random() * 5) + 1}m ${Math.floor(Math.random() * 60)}s`,
       score: severity === 'critical' ? 92 : severity === 'high' ? 78 : severity === 'medium' ? 65 : 45
     });
   }
-  return { scans, total, page, limit, totalPages: Math.ceil(total / limit) };
+
+  // Filter by user if not admin
+  const filtered = isAdmin ? allScans : allScans.filter(s => s.user_id === currentUser?.id);
+  const total = filtered.length;
+  const start = (page - 1) * limit;
+  const pageScans = filtered.slice(start, start + limit);
+
+  return { scans: pageScans, total, page, limit, totalPages: Math.ceil(total / limit), isAdminView: isAdmin };
 };
 
-export const mockScanDetail = (scanId) => ({
+export const mockScanDetail = (scanId, currentUser = null) => {
+  const isAdmin = currentUser?.role === 'admin' || currentUser?.role === 'super_admin';
+  const isOwnScan = currentUser && scanId.startsWith('scan-');
+  
+  return {
   id: scanId,
   type: 'Full Vulnerability Scan',
   target: 'https://example.com',
+  website_url: 'https://example.com',
+  created_at: '2026-06-23T08:30:00Z',
   status: 'completed',
   severity: 'high',
+  user_id: isOwnScan ? currentUser.id : 'demo-user-002',
+  user_email: isOwnScan ? currentUser.email : 'alice@company.com',
+  user_name: isOwnScan ? currentUser.username : 'alice',
   vulnerabilitiesFound: 12,
-  startedAt: '2026-06-23T08:30:00Z',
-  completedAt: '2026-06-23T08:38:42Z',
-  duration: '8m 42s',
-  score: 78,
   summary: 'Found 12 vulnerabilities: 2 critical, 3 high, 4 medium, 3 low',
   vulnerabilities: [
     { id: 'VULN-001', name: 'SQL Injection', severity: 'critical', cvss: 9.8, status: 'open', description: 'SQL injection in login form parameter' },
@@ -102,7 +132,8 @@ export const mockScanDetail = (scanId) => ({
     { id: 'VULN-011', name: 'Email Disclosure', severity: 'low', cvss: 2.5, status: 'open', description: 'Email addresses found in source comments' },
     { id: 'VULN-012', name: 'Meta Tag Info', severity: 'low', cvss: 1.8, status: 'resolved', description: 'Generator meta tag exposes CMS version' }
   ]
-});
+  };
+};
 
 // ── CVE / Threat Intel ───────────────────────────────────────
 export const mockCVESearch = (query) => ({

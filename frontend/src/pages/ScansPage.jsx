@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { scansAPI } from '../services/api';
-import { Zap, Plus } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
+import { Zap, Plus, UserCog, Eye } from 'lucide-react';
 
 export default function ScansPage() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const [scans, setScans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -79,6 +82,17 @@ export default function ScansPage() {
         </form>
       )}
 
+      {/* Admin view indicator */}
+      {isAdmin && (
+        <div className="mb-6 p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3">
+          <Eye className="w-5 h-5 text-amber-400" />
+          <div>
+            <p className="text-sm text-amber-300 font-medium">Admin View</p>
+            <p className="text-xs text-amber-400/70">Showing scans from all users</p>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div>Loading scans...</div>
       ) : scans.length === 0 ? (
@@ -96,10 +110,17 @@ export default function ScansPage() {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold">{scan.website_url}</h3>
+                  <h3 className="text-lg font-semibold">{scan.website_url || scan.target}</h3>
                   <p className="text-gray-400 text-sm mt-1">
-                    {new Date(scan.created_at).toLocaleDateString()} • Status: {scan.status}
+                    {new Date(scan.created_at || scan.startedAt).toLocaleDateString()} • Status: {scan.status}
                   </p>
+                  {/* Show who created the scan for admin view */}
+                  {isAdmin && scan.user_email && (
+                    <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                      <UserCog size={11} />
+                      {scan.user_name || scan.user_email}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   {scan.severity && (

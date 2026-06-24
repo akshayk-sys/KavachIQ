@@ -97,21 +97,24 @@ export const scansAPI = {
   getScan: async (id) => {
     if (isDemo) {
       await delay();
-      return { data: mockScanDetail(id) };
+      const currentUser = useAuthStore.getState().user;
+      return { data: mockScanDetail(id, currentUser) };
     }
     return api.get(`/scans/${id}`);
   },
   getScans: async (params) => {
     if (isDemo) {
       await delay();
-      return { data: mockScans(params?.page, params?.limit) };
+      const currentUser = useAuthStore.getState().user;
+      return { data: mockScans(params?.page, params?.limit, currentUser) };
     }
     return api.get('/scans', { params });
   },
   getScanHistory: async () => {
     if (isDemo) {
       await delay();
-      return { data: mockDashboardMetrics().scanHistory };
+      const currentUser = useAuthStore.getState().user;
+      return { data: { historyData: mockDashboardMetrics(currentUser).scanHistory, isAdminView: currentUser?.role === 'admin' } };
     }
     return api.get('/dashboard/scan-history');
   }
@@ -172,7 +175,9 @@ export const dashboardAPI = {
   getMetrics: async () => {
     if (isDemo) {
       await delay();
-      return { data: mockDashboardMetrics() };
+      const currentUser = useAuthStore.getState().user;
+      const metrics = mockDashboardMetrics(currentUser);
+      return { data: { metrics, isAdminView: currentUser?.role === 'admin' || currentUser?.role === 'super_admin' } };
     }
     return api.get('/dashboard/metrics');
   },

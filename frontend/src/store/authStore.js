@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export const useAuthStore = create((set) => ({
+export const useAuthStore = create((set, get) => ({
   token: localStorage.getItem('token') || null,
   user: JSON.parse(localStorage.getItem('user') || 'null'),
   
@@ -16,5 +16,10 @@ export const useAuthStore = create((set) => ({
     set({ token: null, user: null });
   },
   
-  setToken: (token) => set({ token })
+  setToken: (token) => set({ token }),
+
+  isAdmin: () => {
+    const { user } = get();
+    return user?.role === 'admin' || user?.role === 'super_admin';
+  }
 }));

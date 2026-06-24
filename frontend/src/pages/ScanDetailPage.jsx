@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { scansAPI } from '../services/api';
+import { useAuthStore } from '../store/authStore';
 import { 
   Shield, AlertTriangle, CheckCircle, XCircle, Info, ChevronDown, ChevronUp,
   DollarSign, Users, TrendingDown, Target, BarChart3, FileText,
@@ -8,6 +9,8 @@ import {
 } from 'lucide-react';
 
 export default function ScanDetailPage() {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
   const { scanId } = useParams();
   const [scan, setScan] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -84,6 +87,13 @@ export default function ScanDetailPage() {
             <Clock className="w-3.5 h-3.5" />
             {new Date(scan.created_at).toLocaleString()} • Scan #{scan.id}
           </p>
+          {/* Show scan owner for admin view */}
+          {isAdmin && scan.user_email && (
+            <p className="text-amber-400/80 text-xs flex items-center gap-1.5 mt-1">
+              <Users className="w-3 h-3" />
+              Scanned by {scan.user_name || scan.user_email}
+            </p>
+          )}
         </div>
       </div>
 

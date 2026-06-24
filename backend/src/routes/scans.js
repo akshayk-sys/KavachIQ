@@ -17,11 +17,15 @@ const verifyToken = (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     req.userId = decoded.userId;
+    req.userRole = decoded.role || 'user';
     next();
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
   }
 };
+
+// Helper: Check if user is super admin
+const isSuperAdmin = (req) => req.userRole === 'admin' || req.userRole === 'super_admin';
 
 /**
  * Start a new security scan
@@ -121,13 +125,25 @@ router.post('/', verifyToken, async (req, res) => {
 
 /**
  * Get scan details
+ * - Admins can view any scan
+ * - Regular users can only view their own scans
  */
 router.get('/:scanId', verifyToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM scans WHERE id = $1 AND user_id = $2',
-      [req.params.scanId, req.userId]
-    );
+    let result;
+    if (isSuperAdmin(req)) {
+      // Admin: view any scan
+      result = await pool.query(
+        'SELECT s.*, u.email as user_email, u.username as user_name FROM scans s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = $1',
+        [req.params.scanId]
+      );
+    } else {
+      // Regular user: view only their scan
+      result = await pool.query(
+        'SELECT s.*, u.email as user_email, u.username as user_name FROM scans s LEFT JOIN users u ON s.user_id = u.id WHERE s.id = $1 AND s.user_id = $2',
+        [req.params.scanId, req.userId]
+      );
+    }
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Scan not found' });
@@ -141,27 +157,49 @@ router.get('/:scanId', verifyToken, async (req, res) => {
 });
 
 /**
- * Get user's scans
+ * Get scans list
+ * - Admins: see all users' scans
+ * - Regular users: see only their own scans
  */
 router.get('/', verifyToken, async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
-    
-    const result = await pool.query(
-      'SELECT * FROM scans WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3',
-      [req.userId, limit, offset]
-    );
+    let result, countResult;
 
-    const countResult = await pool.query(
-      'SELECT COUNT(*) FROM scans WHERE user_id = $1',
-      [req.userId]
-    );
+    if (isSuperAdmin(req)) {
+      // Admin: return all scans with user info
+      result = await pool.query(
+        `SELECT s.*, u.email as user_email, u.username as user_name 
+         FROM scans s 
+         LEFT JOIN users u ON s.user_id = u.id 
+         ORDER BY s.created_at DESC 
+         LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+      countResult = await pool.query('SELECT COUNT(*) FROM scans');
+    } else {
+      // Regular user: return only their scans
+      result = await pool.query(
+        `SELECT s.*, u.email as user_email, u.username as user_name 
+         FROM scans s 
+         LEFT JOIN users u ON s.user_id = u.id 
+         WHERE s.user_id = $1 
+         ORDER BY s.created_at DESC 
+         LIMIT $2 OFFSET $3`,
+        [req.userId, limit, offset]
+      );
+      countResult = await pool.query(
+        'SELECT COUNT(*) FROM scans WHERE user_id = $1',
+        [req.userId]
+      );
+    }
 
     res.json({
       scans: result.rows,
       total: parseInt(countResult.rows[0].count),
       limit,
-      offset
+      offset,
+      isAdminView: isSuperAdmin(req)
     });
   } catch (error) {
     global.logger?.error('Get scans error:', error.message);
