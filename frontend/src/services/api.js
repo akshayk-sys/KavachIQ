@@ -32,10 +32,9 @@ import {
 // ── Demo Mode Detection ──────────────────────────────────────
 // Automatically uses demo mode when deployed to Cloudflare
 // (i.e., when the site is not accessed via localhost).
-const isDemo =
-  import.meta.env.VITE_DEMO_MODE === 'true' ||
-  (!window.location.hostname.includes('localhost') &&
-    !window.location.hostname.includes('127.0.0.1'));
+// Demo mode uses mock data when no backend is available.
+// Set VITE_DEMO_MODE=false to connect to a real backend.
+const isDemo = import.meta.env.VITE_DEMO_MODE !== 'false';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 

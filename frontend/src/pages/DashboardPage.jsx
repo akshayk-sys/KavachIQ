@@ -40,6 +40,21 @@ export default function DashboardPage() {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [selectedThreat]);
 
+  // Compute severity-prioritized animation delays — critical threats enter first
+  // IMPORTANT: All hooks MUST be called before the early return for loading state.
+  const severityAnimationDelays = useMemo(() => {
+    if (!threats.length) return {};
+    const severityPriority = { critical: 0, high: 1, medium: 2, low: 3, none: 4 };
+    const sorted = [...threats].sort(
+      (a, b) => (severityPriority[a.severity] ?? 5) - (severityPriority[b.severity] ?? 5)
+    );
+    const delayMap = {};
+    sorted.forEach((t, idx) => {
+      delayMap[t.id] = idx * 50;
+    });
+    return delayMap;
+  }, [threats]);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -141,20 +156,6 @@ export default function DashboardPage() {
     if (score >= 60) return { text: 'text-yellow-500', ring: 'ring-yellow-500/30', bg: 'bg-yellow-500/10' };
     return { text: 'text-red-500', ring: 'ring-red-500/30', bg: 'bg-red-500/10' };
   };
-
-  // Compute severity-prioritized animation delays — critical threats enter first
-  const severityAnimationDelays = useMemo(() => {
-    if (!threats.length) return {};
-    const severityPriority = { critical: 0, high: 1, medium: 2, low: 3, none: 4 };
-    const sorted = [...threats].sort(
-      (a, b) => (severityPriority[a.severity] ?? 5) - (severityPriority[b.severity] ?? 5)
-    );
-    const delayMap = {};
-    sorted.forEach((t, idx) => {
-      delayMap[t.id] = idx * 50;
-    });
-    return delayMap;
-  }, [threats]);
 
   const scoreColor = getScoreColor(animatedValues.averageSecurityScore || 0);
 
