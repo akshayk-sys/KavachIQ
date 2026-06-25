@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { auditAPI, complianceAPI } from '../services/api';
 import { 
   FileText, Download, BarChart3, Shield, Lock, CheckCircle, XCircle, 
   AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink, Clock,
-  Users, Server, Activity, ArrowRight
+  Users, Server, Activity, ArrowRight, Search, X, Filter, Calendar
 } from 'lucide-react';
 
 export default function AuditLogsPage() {
@@ -17,6 +17,70 @@ export default function AuditLogsPage() {
   const [isoReport, setIsoReport] = useState(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [expandedSection, setExpandedSection] = useState(null);
+
+  // ── Filter State ────────────────────────────────────────
+  const [searchText, setSearchText] = useState('');
+  const [actionFilter, setActionFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [dateStart, setDateStart] = useState('');
+  const [dateEnd, setDateEnd] = useState('');
+
+  // ── Derived: unique actions for dropdown ────────────────
+  const uniqueActions = useMemo(() => {
+    const actions = new Set(trailEntries.map(e => e.action));
+    return Array.from(actions).sort();
+  }, [trailEntries]);
+
+  // ── Derived: filtered entries ───────────────────────────
+  const filteredEntries = useMemo(() => {
+    let result = trailEntries;
+
+    // Text search across multiple fields
+    if (searchText.trim()) {
+      const q = searchText.trim().toLowerCase();
+      result = result.filter(e =>
+        e.action?.toLowerCase().includes(q) ||
+        e.user?.toLowerCase().includes(q) ||
+        e.resourceType?.toLowerCase().includes(q) ||
+        e.resourceId?.toString().toLowerCase().includes(q) ||
+        e.ip?.toLowerCase().includes(q) ||
+        e.details?.toLowerCase().includes(q) ||
+        e.status?.toLowerCase().includes(q)
+      );
+    }
+
+    // Action type filter
+    if (actionFilter !== 'all') {
+      result = result.filter(e => e.action === actionFilter);
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      result = result.filter(e => e.status === statusFilter);
+    }
+
+    // Date range filter
+    if (dateStart) {
+      const start = new Date(dateStart).getTime();
+      result = result.filter(e => new Date(e.timestamp).getTime() >= start);
+    }
+    if (dateEnd) {
+      const end = new Date(dateEnd).getTime() + 86400000; // end of day
+      result = result.filter(e => new Date(e.timestamp).getTime() <= end);
+    }
+
+    return result;
+  }, [trailEntries, searchText, actionFilter, statusFilter, dateStart, dateEnd]);
+
+  const hasActiveFilters = searchText || actionFilter !== 'all' || statusFilter !== 'all' || dateStart || dateEnd;
+
+  const clearFilters = () => {
+    setSearchText('');
+    setActionFilter('all');
+    setStatusFilter('all');
+    setDateStart('');
+    setDateEnd('');
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -208,13 +272,129 @@ export default function AuditLogsPage() {
 
           {/* Detailed Audit Log Table */}
           <div className="bg-gray-800/50 p-5 lg:p-6 rounded-xl border border-gray-700/50">
-            <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-400" />
-              Detailed Audit Trail
-              <span className="text-xs font-normal text-gray-500 ml-2">({trailEntries.length} entries)</span>
-            </h2>
-            {trailEntries.length === 0 ? (
-              <p className="text-gray-400 text-center py-8">No audit trail entries found</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <FileText className="w-5 h-5 text-blue-400" />
+                Detailed Audit Trail
+                <span className="text-xs font-normal text-gray-500 ml-1">({trailEntries.length} entries)</span>
+              </h2>
+            </div>
+
+            {/* Filter Bar */}
+            <div className="flex flex-col lg:flex-row gap-3 mb-4 p-3 bg-gray-700/20 rounded-lg border border-gray-600/30">
+              {/* Search */}
+              <div className="relative flex-1 min-w-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search user, action, resource, IP..."
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-600/50 rounded-lg pl-9 pr-3 py-2 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500/50 transition"
+                />
+                {searchText && (
+                  <button
+                    onClick={() => setSearchText('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-gray-500 hover:text-gray-300"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Action Filter */}
+              <div className="relative min-w-[140px]">
+                <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                <select
+                  value={actionFilter}
+                  onChange={(e) => setActionFilter(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-600/50 rounded-lg pl-9 pr-8 py-2 text-sm text-gray-200 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 transition"
+                >
+                  <option value="all">All Actions</option>
+                  {uniqueActions.map((action) => (
+                    <option key={action} value={action}>
+                      {action.replace(/_/g, ' ')}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative min-w-[130px]">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full bg-gray-800 border border-gray-600/50 rounded-lg pl-3 pr-8 py-2 text-sm text-gray-200 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50 transition"
+                >
+                  <option value="all">All Status</option>
+                  <option value="success">Success</option>
+                  <option value="failure">Failure</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500 pointer-events-none" />
+              </div>
+
+              {/* Date Range */}
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                  <input
+                    type="date"
+                    value={dateStart}
+                    onChange={(e) => setDateStart(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600/50 rounded-lg pl-9 pr-2 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500/50 transition [color-scheme:dark]"
+                    placeholder="From"
+                  />
+                </div>
+                <span className="text-gray-500 text-xs">—</span>
+                <div className="relative">
+                  <Calendar className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-500" />
+                  <input
+                    type="date"
+                    value={dateEnd}
+                    onChange={(e) => setDateEnd(e.target.value)}
+                    className="w-full bg-gray-800 border border-gray-600/50 rounded-lg pl-9 pr-2 py-2 text-sm text-gray-200 focus:outline-none focus:border-blue-500/50 transition [color-scheme:dark]"
+                    placeholder="To"
+                  />
+                </div>
+              </div>
+
+              {/* Clear Filters */}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-400 hover:text-gray-200 bg-gray-700/40 hover:bg-gray-700 rounded-lg transition shrink-0"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Results Count */}
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs text-gray-500">
+                {hasActiveFilters ? (
+                  <>{filteredEntries.length} of {trailEntries.length} entries</>
+                ) : (
+                  <>{trailEntries.length} entries</>
+                )}
+              </p>
+            </div>
+
+            {filteredEntries.length === 0 ? (
+              <div className="text-center py-12">
+                <Search className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                <p className="text-gray-400 text-sm">No matching entries found</p>
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    className="mt-2 text-xs text-blue-400 hover:text-blue-300 underline transition"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -229,7 +409,7 @@ export default function AuditLogsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {trailEntries.slice(0, 50).map((entry, idx) => {
+                    {filteredEntries.slice(0, 100).map((entry, idx) => {
                       const isFailure = entry.status === 'failure';
                       return (
                         <tr
@@ -237,18 +417,23 @@ export default function AuditLogsPage() {
                           className="border-b border-gray-700/30 hover:bg-gray-700/20 transition"
                         >
                           <td className="py-3 px-2 text-gray-300 whitespace-nowrap text-xs">
-                            {new Date(entry.timestamp).toLocaleString()}
+                            <div className="flex items-center gap-1.5">
+                              <Clock className="w-3 h-3 text-gray-500" />
+                              {new Date(entry.timestamp).toLocaleString()}
+                            </div>
                           </td>
                           <td className="py-3 px-2">
-                            <span className="text-gray-200 text-xs">{entry.user}</span>
+                            <span className="text-gray-200 text-xs font-medium">{entry.user}</span>
                           </td>
                           <td className="py-3 px-2">
-                            <span className="text-xs capitalize px-2 py-0.5 rounded bg-gray-700/40 text-gray-300">
+                            <span className="text-xs capitalize px-2 py-0.5 rounded bg-gray-700/40 text-gray-300 whitespace-nowrap">
                               {entry.action.replace(/_/g, ' ')}
                             </span>
                           </td>
                           <td className="py-3 px-2 text-xs text-gray-400">
-                            {entry.resourceType}/{entry.resourceId}
+                            <span className="font-mono">{entry.resourceType}</span>
+                            <span className="text-gray-600">/</span>
+                            <span className="text-gray-500">{entry.resourceId}</span>
                           </td>
                           <td className="py-3 px-2 text-xs text-gray-500 hidden md:table-cell font-mono">
                             {entry.ip}
@@ -270,9 +455,9 @@ export default function AuditLogsPage() {
                     })}
                   </tbody>
                 </table>
-                {trailEntries.length > 50 && (
+                {filteredEntries.length > 100 && (
                   <p className="text-center text-gray-500 text-xs mt-4">
-                    Showing 50 of {trailEntries.length} entries
+                    Showing 100 of {filteredEntries.length} entries
                   </p>
                 )}
               </div>
