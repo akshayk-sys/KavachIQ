@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useAuthStore } from '../store/authStore';
+import { checkDemoAccess } from '../store/usageStore';
 import { upgradeAPI } from '../services/api';
-import { Check, X, ArrowRight, Loader } from 'lucide-react';
+import { Check, X, ArrowRight, Loader, Shield, AlertTriangle } from 'lucide-react';
 
 export default function UpgradePage() {
   const { user } = useAuthStore();
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Check if user is blocked by the one-time demo restriction
+  const { allowed: demoAllowed } = checkDemoAccess(user);
+  const isBlocked = !demoAllowed;
+  const isSuperUser = user?.role === 'admin' || user?.role === 'super_admin';
   const [upgrading, setUpgrading] = useState(null);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -82,6 +88,24 @@ export default function UpgradePage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 py-12 px-4">
       <div className="max-w-7xl mx-auto">
+        {/* Demo Restriction Banner */}
+        {isBlocked && !isSuperUser && (
+          <div className="mb-8 p-4 bg-gradient-to-r from-amber-800/40 to-orange-800/30 border border-amber-600/30 rounded-xl flex items-start gap-4">
+            <div className="p-2 bg-amber-500/15 rounded-lg flex-shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-amber-200 font-semibold text-sm">
+                Your demo session has ended
+              </p>
+              <p className="text-amber-300/70 text-xs mt-1 leading-relaxed">
+                You've already used your one-time demo access. Other sections (Dashboard, Scans, Threat Intelligence, Audit & Compliance) are locked until you upgrade. Choose a plan below to unlock full platform access.
+              </p>
+            </div>
+            <Shield className="w-5 h-5 text-amber-500/40 flex-shrink-0 mt-0.5" />
+          </div>
+        )}
+
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
