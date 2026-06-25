@@ -6,6 +6,28 @@ import {
   Users, Server, Activity, ArrowRight, Search, X, Filter, Calendar
 } from 'lucide-react';
 
+// ── Pagination Helper ─────────────────────────────────────────
+function generatePageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+
+  const pages = [1];
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+
+  if (start > 2) pages.push('...');
+
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (end < total - 1) pages.push('...');
+
+  if (total > 1) pages.push(total);
+
+  return pages;
+}
+
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -80,6 +102,28 @@ export default function AuditLogsPage() {
     setStatusFilter('all');
     setDateStart('');
     setDateEnd('');
+  };
+
+  // ── Pagination State ───────────────────────────────────────
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchText, actionFilter, statusFilter, dateStart, dateEnd]);
+
+  // ── Derived: paginated entries ────────────────────────────
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredEntries.length / pageSize)), [filteredEntries.length, pageSize]);
+
+  const paginatedEntries = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredEntries.slice(start, start + pageSize);
+  }, [filteredEntries, currentPage, pageSize]);
+
+  const goToPage = (page) => {
+    const target = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(target);
   };
 
   useEffect(() => {
@@ -371,17 +415,6 @@ export default function AuditLogsPage() {
               )}
             </div>
 
-            {/* Results Count */}
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-500">
-                {hasActiveFilters ? (
-                  <>{filteredEntries.length} of {trailEntries.length} entries</>
-                ) : (
-                  <>{trailEntries.length} entries</>
-                )}
-              </p>
-            </div>
-
             {filteredEntries.length === 0 ? (
               <div className="text-center py-12">
                 <Search className="w-8 h-8 text-gray-600 mx-auto mb-2" />
@@ -396,71 +429,142 @@ export default function AuditLogsPage() {
                 )}
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-700/50">
-                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Timestamp</th>
-                      <th className="text-left py-3 px-2 text-gray-400 font-medium">User</th>
-                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Action</th>
-                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Resource</th>
-                      <th className="text-left py-3 px-2 text-gray-400 font-medium hidden md:table-cell">IP Address</th>
-                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredEntries.slice(0, 100).map((entry, idx) => {
-                      const isFailure = entry.status === 'failure';
-                      return (
-                        <tr
-                          key={entry.id || idx}
-                          className="border-b border-gray-700/30 hover:bg-gray-700/20 transition"
-                        >
-                          <td className="py-3 px-2 text-gray-300 whitespace-nowrap text-xs">
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="w-3 h-3 text-gray-500" />
-                              {new Date(entry.timestamp).toLocaleString()}
-                            </div>
-                          </td>
-                          <td className="py-3 px-2">
-                            <span className="text-gray-200 text-xs font-medium">{entry.user}</span>
-                          </td>
-                          <td className="py-3 px-2">
-                            <span className="text-xs capitalize px-2 py-0.5 rounded bg-gray-700/40 text-gray-300 whitespace-nowrap">
-                              {entry.action.replace(/_/g, ' ')}
-                            </span>
-                          </td>
-                          <td className="py-3 px-2 text-xs text-gray-400">
-                            <span className="font-mono">{entry.resourceType}</span>
-                            <span className="text-gray-600">/</span>
-                            <span className="text-gray-500">{entry.resourceId}</span>
-                          </td>
-                          <td className="py-3 px-2 text-xs text-gray-500 hidden md:table-cell font-mono">
-                            {entry.ip}
-                          </td>
-                          <td className="py-3 px-2">
-                            <span
-                              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
-                                isFailure
-                                  ? 'bg-red-500/10 text-red-400'
-                                  : 'bg-green-500/10 text-green-400'
-                              }`}
-                            >
-                              {isFailure ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
-                              {entry.status}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-                {filteredEntries.length > 100 && (
-                  <p className="text-center text-gray-500 text-xs mt-4">
-                    Showing 100 of {filteredEntries.length} entries
+              <>
+                {/* Results Count */}
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-gray-500">
+                    {hasActiveFilters
+                      ? `${filteredEntries.length} of ${trailEntries.length} entries`
+                      : `${trailEntries.length} entries`}
                   </p>
-                )}
-              </div>
+                  <p className="text-xs text-gray-500">
+                    Showing {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredEntries.length)} of {filteredEntries.length}
+                  </p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-700/50">
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Timestamp</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">User</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Action</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Resource</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium hidden md:table-cell">IP Address</th>
+                        <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedEntries.map((entry, idx) => {
+                        const isFailure = entry.status === 'failure';
+                        return (
+                          <tr
+                            key={entry.id || idx}
+                            className="border-b border-gray-700/30 hover:bg-gray-700/20 transition"
+                          >
+                            <td className="py-3 px-2 text-gray-300 whitespace-nowrap text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="w-3 h-3 text-gray-500" />
+                                {new Date(entry.timestamp).toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <span className="text-gray-200 text-xs font-medium">{entry.user}</span>
+                            </td>
+                            <td className="py-3 px-2">
+                              <span className="text-xs capitalize px-2 py-0.5 rounded bg-gray-700/40 text-gray-300 whitespace-nowrap">
+                                {entry.action.replace(/_/g, ' ')}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2 text-xs text-gray-400">
+                              <span className="font-mono">{entry.resourceType}</span>
+                              <span className="text-gray-600">/</span>
+                              <span className="text-gray-500">{entry.resourceId}</span>
+                            </td>
+                            <td className="py-3 px-2 text-xs text-gray-500 hidden md:table-cell font-mono">
+                              {entry.ip}
+                            </td>
+                            <td className="py-3 px-2">
+                              <span
+                                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
+                                  isFailure
+                                    ? 'bg-red-500/10 text-red-400'
+                                    : 'bg-green-500/10 text-green-400'
+                                }`}
+                              >
+                                {isFailure ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                                {entry.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination Controls */}
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 pt-4 border-t border-gray-700/30">
+                  {/* Page Size Selector */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Rows per page:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="bg-gray-800 border border-gray-600/50 rounded-lg px-2 py-1.5 text-xs text-gray-200 appearance-none cursor-pointer focus:outline-none focus:border-blue-500/50"
+                    >
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
+
+                  {/* Page Navigation */}
+                  <div className="flex items-center gap-1">
+                    {/* Previous */}
+                    <button
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+                    >
+                      <ChevronDown className="w-3.5 h-3.5 rotate-90" />
+                      Prev
+                    </button>
+
+                    {/* Page Numbers */}
+                    {generatePageNumbers(currentPage, totalPages).map((page, idx) =>
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-1.5 text-xs text-gray-600">...</span>
+                      ) : (
+                        <button
+                          key={page}
+                          onClick={() => goToPage(page)}
+                          className={`min-w-[32px] px-2 py-1.5 text-xs rounded-lg transition ${
+                            currentPage === page
+                              ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 font-semibold'
+                              : 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50'
+                          }`}
+                        >
+                          {page}
+                        </button>
+                      )
+                    )}
+
+                    {/* Next */}
+                    <button
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs rounded-lg transition disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
+                    >
+                      Next
+                      <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
