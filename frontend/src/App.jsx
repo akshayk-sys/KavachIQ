@@ -44,7 +44,14 @@ const DemoRestrictionRoute = ({ children }) => {
 
   const { allowed } = checkDemoAccess(user);
   if (!allowed) {
-    return <Navigate to="/upgrade" replace />;
+    // Pass a toast message through router state so the UpgradePage can display it
+    return (
+      <Navigate
+        to="/upgrade"
+        replace
+        state={{ demoBlockedToast: 'This section requires an active subscription. Your one-time demo has been used — please upgrade to continue.' }}
+      />
+    );
   }
 
   return children;

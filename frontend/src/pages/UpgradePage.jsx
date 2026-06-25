@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { checkDemoAccess } from '../store/usageStore';
 import { upgradeAPI } from '../services/api';
-import { Check, X, ArrowRight, Loader, Shield, AlertTriangle } from 'lucide-react';
+import { Check, X, ArrowRight, Loader, Shield, AlertTriangle, XCircle } from 'lucide-react';
 
 export default function UpgradePage() {
   const { user } = useAuthStore();
+  const location = useLocation();
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -14,6 +16,18 @@ export default function UpgradePage() {
   const { allowed: demoAllowed } = checkDemoAccess(user);
   const isBlocked = !demoAllowed;
   const isSuperUser = user?.role === 'admin' || user?.role === 'super_admin';
+
+  // ── Toast from redirect state ──────────────────────────────
+  const [toast, setToast] = useState(location.state?.demoBlockedToast || null);
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 5000);
+      // Clear the router state so the toast doesn't reappear on re-render
+      window.history.replaceState({}, document.title);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
   const [upgrading, setUpgrading] = useState(null);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -86,7 +100,30 @@ export default function UpgradePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 py-12 px-4">
+    <div className="min-h-screen bg-gradient-to-b from-slate-900 to-slate-800 py-12 px-4 relative">
+      {/* Toast Notification */}
+      {toast && (
+        <div className="fixed top-4 right-4 z-50 max-w-sm animate-slide-in">
+          <div className="bg-gradient-to-r from-red-900/95 to-red-800/95 border border-red-500/40 rounded-xl p-4 shadow-2xl backdrop-blur-sm flex items-start gap-3">
+            <div className="p-1 bg-red-500/20 rounded-lg flex-shrink-0">
+              <XCircle className="w-5 h-5 text-red-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-red-200 font-semibold text-sm">Access Restricted</p>
+              <p className="text-red-300/80 text-xs mt-1 leading-relaxed">
+                {toast}
+              </p>
+            </div>
+            <button
+              onClick={() => setToast(null)}
+              className="p-0.5 text-red-400/60 hover:text-red-300 transition-colors flex-shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto">
         {/* Demo Restriction Banner */}
         {isBlocked && !isSuperUser && (
