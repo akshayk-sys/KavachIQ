@@ -1304,15 +1304,19 @@ export const mockAuditTrail = (resourceType, resourceId) => {
 };
 
 export const mockAuditSummary = () => ({
-  totalEvents: 1247,
+  totalEvents: 1402,
   uniqueUsers: 8,
   failureRate: 2.3,
-  topActions: [
-    { action: 'read', count: 523 },
-    { action: 'create', count: 312 },
-    { action: 'update', count: 201 },
-    { action: 'delete', count: 89 },
-    { action: 'export', count: 67 }
+  actionBreakdown: [
+    { action: 'login', count: 423 },
+    { action: 'create_scan', count: 312 },
+    { action: 'view_report', count: 287 },
+    { action: 'update_settings', count: 201 },
+    { action: 'delete_scan', count: 89 },
+    { action: 'export_report', count: 67 },
+    { action: 'user_blocked', count: 12 },
+    { action: 'user_unblocked', count: 8 },
+    { action: 'user_deleted', count: 3 }
   ],
   recentActivity: [
     { date: '2026-06-23', count: 34, failures: 1 },
@@ -1392,32 +1396,143 @@ export const mockSupportedKeys = () => ({
 
 // ── Compliance Reports ────────────────────────────────────────
 export const mockSOC2Report = () => ({
-  status: 'compliant',
-  lastAssessment: '2026-06-01',
-  nextAssessment: '2026-09-01',
-  controls: {
-    passed: 142,
-    failed: 3,
-    total: 145,
-    categories: [
-      { name: 'Security', passed: 38, failed: 1, total: 39 },
-      { name: 'Availability', passed: 25, failed: 0, total: 25 },
-      { name: 'Processing Integrity', passed: 20, failed: 1, total: 21 },
-      { name: 'Confidentiality', passed: 32, failed: 0, total: 32 },
-      { name: 'Privacy', passed: 27, failed: 1, total: 28 }
-    ]
-  }
+  reportType: 'SOC 2 Compliance Report',
+  generatedAt: new Date().toISOString(),
+  reportingPeriod: {
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    end: new Date().toISOString()
+  },
+  trustServicesCriteria: {
+    security: {
+      status: 'Compliant',
+      details: [
+        'Access controls implemented - JWT-based authentication',
+        'Security monitoring via automated scanning',
+        'Incident detection via threat intelligence',
+        'Total access events: 1,247',
+        'Unique users monitored: 8'
+      ],
+      gaps: []
+    },
+    availability: {
+      status: 'Compliant',
+      details: [
+        'Scans completed: 147',
+        'System monitoring active 24/7',
+        'Automated health checks implemented',
+        'Uptime: 99.97%'
+      ],
+      gaps: []
+    },
+    processingIntegrity: {
+      status: 'Compliant',
+      details: [
+        'Complete audit trail maintained',
+        'High risk scans detected: 12',
+        'All actions logged with timestamps and user context',
+        'Data processing validation active'
+      ],
+      gaps: []
+    },
+    confidentiality: {
+      status: 'Compliant',
+      details: [
+        'SSL/TLS encryption for data in transit',
+        'Password hashing with bcrypt',
+        'Role-based access control (RBAC) implemented',
+        'Encryption at rest for sensitive data'
+      ],
+      gaps: []
+    }
+  },
+  recommendations: [
+    'Continue regular security scanning (currently active)',
+    'Maintain comprehensive audit logging (currently active)',
+    'Review access logs monthly for anomalous patterns',
+    'Conduct quarterly access control reviews',
+    'Implement multi-factor authentication for all admin accounts'
+  ]
 });
 
 export const mockISO27001Report = () => ({
-  status: 'in_progress',
-  progress: 72,
-  domains: {
-    completed: 8,
-    inProgress: 3,
-    notStarted: 1,
-    total: 12
-  }
+  reportType: 'ISO/IEC 27001:2022 Compliance Report',
+  generatedAt: new Date().toISOString(),
+  reportingPeriod: {
+    start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    end: new Date().toISOString()
+  },
+  standardClauses: {
+    clause4_ContextOfOrganization: {
+      title: '4 - Context of the Organization',
+      status: 'Compliant',
+      evidence: [
+        'Security scanning scope defined for all web assets',
+        'Threat intelligence integration for external context'
+      ]
+    },
+    clause6_Planning: {
+      title: '6 - Planning',
+      status: 'Compliant',
+      evidence: [
+        'Risk assessment via CVSS scoring',
+        'Security objectives tracked via dashboard metrics'
+      ]
+    },
+    clause7_Support: {
+      title: '7 - Support',
+      status: 'Compliant',
+      evidence: [
+        'Awareness via security scan reports',
+        'Documented audit trails and reports'
+      ]
+    },
+    clause8_Operation: {
+      title: '8 - Operation',
+      status: 'Compliant',
+      evidence: [
+        'Risk assessments performed: 147 scans in period',
+        'Automated vulnerability scanning operational',
+        'Threat detection and monitoring active'
+      ]
+    },
+    clause9_PerformanceEvaluation: {
+      title: '9 - Performance Evaluation',
+      status: 'Compliant',
+      evidence: [
+        'Total audit events logged: 1,247',
+        'Continuous monitoring and reporting',
+        'Security metrics tracked on dashboard'
+      ]
+    },
+    clause10_Improvement: {
+      title: '10 - Improvement',
+      status: 'Compliant',
+      evidence: [
+        'Nonconformities tracked via scan findings',
+        'Corrective actions generated via AI recommendations',
+        'Continuous improvement through regular scanning'
+      ]
+    }
+  },
+  annexAControls: {
+    A5_InformationSecurityPolicies: { status: 'Compliant', notes: 'Security policies enforced via scanning rules' },
+    A6_OrganizationOfInformationSecurity: { status: 'Compliant', notes: 'Roles defined in user management system' },
+    A7_HumanResourceSecurity: { status: 'Compliant', notes: 'User activity tracking active' },
+    A8_AssetManagement: { status: 'Compliant', notes: 'Web assets tracked via scan records' },
+    A9_AccessControl: { status: 'Compliant', notes: 'JWT + RBAC implemented' },
+    A10_Cryptography: { status: 'Compliant', notes: 'SSL/TLS for all communications' },
+    A12_OperationsSecurity: { status: 'Compliant', notes: 'Automated scanning and monitoring' },
+    A16_IncidentManagement: { status: 'Compliant', notes: 'Threat intelligence and alert system' },
+    A17_BusinessContinuity: { status: 'Partially Compliant', notes: 'Basic redundancy via Docker' },
+    A18_Compliance: { status: 'Compliant', notes: 'Reports generated for compliance review' }
+  },
+  recommendations: [
+    'Formalize ISMS policy documentation based on scan findings',
+    'Conduct regular internal audits using the generated reports',
+    'Document risk treatment plans for identified vulnerabilities',
+    'Establish formal incident response procedures',
+    'Review and update security policies quarterly'
+  ]
 });
 
 // ── Audit Log (for tracking admin actions) ───────────────────

@@ -9,6 +9,7 @@ import {
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [trailEntries, setTrailEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [exportLoading, setExportLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('logs');
@@ -20,9 +21,13 @@ export default function AuditLogsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const res = await auditAPI.getSummary();
-        setSummary(res.data.summary);
-        setLogs(res.data.summary.actionBreakdown || []);
+        const [summaryRes, trailRes] = await Promise.all([
+          auditAPI.getSummary(),
+          auditAPI.getTrail('all', 'all')
+        ]);
+        setSummary(summaryRes.data.summary);
+        setLogs(summaryRes.data.summary.actionBreakdown || []);
+        setTrailEntries(trailRes.data.entries || []);
       } catch (error) {
         console.error('Fetch audit logs error:', error);
       } finally {
@@ -179,7 +184,7 @@ export default function AuditLogsPage() {
           {/* Action Breakdown */}
           <div className="bg-gray-800/50 p-5 lg:p-6 rounded-xl border border-gray-700/50">
             <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
-              <FileText className="w-5 h-5 text-blue-400" />
+              <BarChart3 className="w-5 h-5 text-blue-400" />
               Action Breakdown
             </h2>
             {logs.length === 0 ? (
@@ -190,13 +195,86 @@ export default function AuditLogsPage() {
                   <div key={idx} className="flex items-center justify-between p-3 bg-gray-700/20 rounded-lg border border-gray-600/30 hover:border-gray-500/50 transition">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-blue-500" />
-                      <span className="text-sm text-gray-300">{log.action.replace(/_/g, ' ')}</span>
+                      <span className="text-sm text-gray-300 capitalize">{log.action.replace(/_/g, ' ')}</span>
                     </div>
                     <span className="px-2 py-0.5 bg-blue-500/10 text-blue-300 rounded text-xs font-semibold">
                       {log.count}x
                     </span>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Audit Log Table */}
+          <div className="bg-gray-800/50 p-5 lg:p-6 rounded-xl border border-gray-700/50">
+            <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-400" />
+              Detailed Audit Trail
+              <span className="text-xs font-normal text-gray-500 ml-2">({trailEntries.length} entries)</span>
+            </h2>
+            {trailEntries.length === 0 ? (
+              <p className="text-gray-400 text-center py-8">No audit trail entries found</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-700/50">
+                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Timestamp</th>
+                      <th className="text-left py-3 px-2 text-gray-400 font-medium">User</th>
+                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Action</th>
+                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Resource</th>
+                      <th className="text-left py-3 px-2 text-gray-400 font-medium hidden md:table-cell">IP Address</th>
+                      <th className="text-left py-3 px-2 text-gray-400 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trailEntries.slice(0, 50).map((entry, idx) => {
+                      const isFailure = entry.status === 'failure';
+                      return (
+                        <tr
+                          key={entry.id || idx}
+                          className="border-b border-gray-700/30 hover:bg-gray-700/20 transition"
+                        >
+                          <td className="py-3 px-2 text-gray-300 whitespace-nowrap text-xs">
+                            {new Date(entry.timestamp).toLocaleString()}
+                          </td>
+                          <td className="py-3 px-2">
+                            <span className="text-gray-200 text-xs">{entry.user}</span>
+                          </td>
+                          <td className="py-3 px-2">
+                            <span className="text-xs capitalize px-2 py-0.5 rounded bg-gray-700/40 text-gray-300">
+                              {entry.action.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2 text-xs text-gray-400">
+                            {entry.resourceType}/{entry.resourceId}
+                          </td>
+                          <td className="py-3 px-2 text-xs text-gray-500 hidden md:table-cell font-mono">
+                            {entry.ip}
+                          </td>
+                          <td className="py-3 px-2">
+                            <span
+                              className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded ${
+                                isFailure
+                                  ? 'bg-red-500/10 text-red-400'
+                                  : 'bg-green-500/10 text-green-400'
+                              }`}
+                            >
+                              {isFailure ? <XCircle className="w-3 h-3" /> : <CheckCircle className="w-3 h-3" />}
+                              {entry.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {trailEntries.length > 50 && (
+                  <p className="text-center text-gray-500 text-xs mt-4">
+                    Showing 50 of {trailEntries.length} entries
+                  </p>
+                )}
               </div>
             )}
           </div>
