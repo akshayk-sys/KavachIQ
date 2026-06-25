@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useAuthStore } from '../store/authStore';
 import { settingsAPI } from '../services/api';
+import { resetDemoUsage } from '../store/usageStore';
 import { 
   Key, Shield, CheckCircle, XCircle, Eye, EyeOff,
   Trash2, ExternalLink, RefreshCw, Plus, AlertCircle,
-  Info, Check
+  Info, Check, RefreshCwOff, Database
 } from 'lucide-react';
 import clsx from 'clsx';
 
@@ -22,6 +24,7 @@ function KeyValuePreview({ value, visible }) {
 }
 
 export default function SettingsPage() {
+  const { user } = useAuthStore();
   const [keys, setKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -31,6 +34,12 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [keyStatus, setKeyStatus] = useState(null);
+  const [resettingUsage, setResettingUsage] = useState(false);
+  const [resetConfirm, setResetConfirm] = useState(false);
+  const [resetMsg, setResetMsg] = useState(null);
+
+  // Only admins see the reset button
+  const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
 
   const fetchKeys = async () => {
     setLoading(true);
@@ -96,6 +105,18 @@ export default function SettingsPage() {
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to delete API key');
     }
+  };
+
+  const handleResetDemoUsage = async () => {
+    setResettingUsage(true);
+    setResetMsg(null);
+    // Simulate a brief delay for UX
+    await new Promise(r => setTimeout(r, 600));
+    resetDemoUsage();
+    setResetMsg({ type: 'success', text: 'Demo usage data cleared. All users can now access the platform again.' });
+    setResetConfirm(false);
+    setResettingUsage(false);
+    setTimeout(() => setResetMsg(null), 5000);
   };
 
   return (
@@ -294,6 +315,70 @@ export default function SettingsPage() {
             );
           })}
         </div>
+      )}
+
+      {/* Admin: Reset Demo Usage */}
+      {isAdmin && (
+        <>
+          {resetMsg && (
+            <div className={`mb-6 px-4 py-3 rounded-lg flex items-center gap-2 text-sm animate-fade-in ${
+              resetMsg.type === 'success'
+                ? 'bg-green-900/30 border border-green-500/30 text-green-400'
+                : 'bg-red-900/30 border border-red-500/30 text-red-400'
+            }`}>
+              {resetMsg.type === 'success' ? <Check size={16} /> : <AlertCircle size={16} />}
+              {resetMsg.text}
+            </div>
+          )}
+
+          <div className="mt-8 p-5 bg-amber-900/10 border border-amber-500/20 rounded-xl">
+            <div className="flex items-start gap-3">
+              <Database className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h3 className="text-white font-medium text-sm">Demo Usage Tracking</h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  Clear all one-time demo usage records. This allows individual users who have already used their free demo to access the platform again. Useful for testing or resetting the demo flow.
+                </p>
+                <div className="mt-3 flex items-center gap-3">
+                  {!resetConfirm ? (
+                    <button
+                      onClick={() => setResetConfirm(true)}
+                      disabled={resettingUsage}
+                      className="flex items-center gap-2 px-4 py-2 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded-lg text-sm font-medium hover:bg-amber-600/30 transition-all disabled:opacity-50"
+                    >
+                      {resettingUsage ? (
+                        <><RefreshCw size={14} className="animate-spin" /> Resetting...</>
+                      ) : (
+                        <><RefreshCwOff size={14} /> Reset Demo Usage</>
+                      )}
+                    </button>
+                  ) : (
+                    <>
+                      <span className="text-xs text-amber-400/70">Are you sure?</span>
+                      <button
+                        onClick={handleResetDemoUsage}
+                        disabled={resettingUsage}
+                        className="flex items-center gap-2 px-4 py-2 bg-red-600/20 text-red-400 border border-red-500/30 rounded-lg text-sm font-medium hover:bg-red-600/30 transition-all disabled:opacity-50"
+                      >
+                        {resettingUsage ? (
+                          <><RefreshCw size={14} className="animate-spin" /> Resetting...</>
+                        ) : (
+                          <><Trash2 size={14} /> Yes, Reset All</>
+                        )}
+                      </button>
+                      <button
+                        onClick={() => setResetConfirm(false)}
+                        className="px-3 py-2 text-gray-400 hover:text-white text-sm transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Info Box */}
