@@ -1,22 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
 import { useAuthStore } from '../store/authStore';
-import { AlertCircle } from 'lucide-react';
+import { checkDemoAccess, checkAndRecordDemoUsage } from '../store/usageStore';
+import { AlertCircle, Crown } from 'lucide-react';
 import kavachLogo from '/KavachIQ_logo2.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
+  const { token, user, login } = useAuthStore();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [blockedUser, setBlockedUser] = useState(null);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     username: '',
     confirmPassword: ''
   });
+
+  // If already logged in, check demo access
+  useEffect(() => {
+    if (token && user) {
+      const { allowed } = checkDemoAccess(user);
+      if (allowed) {
+        navigate('/', { replace: true });
+      } else {
+        navigate('/upgrade', { replace: true });
+      }
+    }
+  }, [token, user, navigate]);
+
+  const logoutAndReset = () => {
+    useAuthStore.getState().logout();
+    setBlockedUser(null);
+    setError('');
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -36,14 +56,24 @@ export default function LoginPage() {
           email: formData.email,
           password: formData.password
         });
-        login(res.data.token, res.data.user);
-        navigate('/');
+
+        const loggedInUser = res.data.user;
+        login(res.data.token, loggedInUser);
+
+        // Check if this user has already used the demo
+        const { allowed, reason } = checkAndRecordDemoUsage(loggedInUser);
+
+        if (allowed) {
+          navigate('/', { replace: true });
+        } else {
+          setBlockedUser({ email: loggedInUser.email, reason });
+        }
       } else {
         if (formData.password !== formData.confirmPassword) {
           setError('Passwords do not match');
           return;
         }
-        await authAPI.register({
+        const res = await authAPI.register({
           username: formData.username,
           email: formData.email,
           password: formData.password
@@ -75,8 +105,33 @@ export default function LoginPage() {
             {isLogin ? 'Login to Dashboard' : 'Create Account'}
           </h2>
 
+          {/* Upgrade Required Banner */}
+          {blockedUser && (
+            <div className="mb-6 p-6 bg-gradient-to-r from-amber-900/60 to-orange-900/60 border border-amber-600/40 rounded-xl text-center">
+              <Crown className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+              <h3 className="text-lg font-bold text-amber-300 mb-2">Demo Session Used</h3>
+              <p className="text-amber-200/80 text-sm mb-4">
+                {blockedUser.reason || 'This account has already used the one-time demo. Please upgrade to continue using KavachIQ.'}
+              </p>
+              <div className="flex items-center justify-center gap-3">
+                <button
+                  onClick={() => navigate('/upgrade')}
+                  className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white font-semibold rounded-lg transition text-sm"
+                >
+                  View Upgrade Plans
+                </button>
+                <button
+                  onClick={() => logoutAndReset()}
+                  className="px-4 py-2 text-amber-300/70 hover:text-amber-200 text-sm underline transition"
+                >
+                  Use Different Account
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Error Message */}
-          {error && (
+          {error && !blockedUser && (
             <div className="mb-4 p-4 bg-red-900 border border-red-700 rounded flex items-gap-2 text-red-200 text-sm">
               <AlertCircle size={18} className="mr-2 flex-shrink-0" />
               {error}
